@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="laundry_pos.NewOrderModal">
+        <Dialog title="'New Laundry Order'" size="'md'">
+
+            <!-- Step 1: Customer Type -->
+            <section class="mb-4">
+                <p class="fw-semibold text-muted mb-2">1. Who is this order for?</p>
+                <div class="d-flex gap-2">
+                    <button
+                        t-foreach="[{code: 'new', label: 'New Customer'}, {code: 'returning', label: 'Returning Customer'}]"
+                        t-as="ct"
+                        t-key="ct.code"
+                        class="btn flex-fill py-3 fs-6"
+                        t-att-class="state.customerType === ct.code ? 'btn-primary' : 'btn-outline-secondary'"
+                        t-on-click="() => this.selectCustomerType(ct.code)">
+                        <t t-esc="ct.label"/>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Step 2: Service Type -->
+            <section>
+                <p class="fw-semibold text-muted mb-2">2. Select Service Type</p>
+                <div class="d-flex flex-column gap-2">
+                    <button
+                        t-foreach="serviceTypes"
+                        t-as="st"
+                        t-key="st.code"
+                        class="btn text-start py-3 px-4 fs-6"
+                        t-att-class="state.serviceType === st.code ? 'btn-primary' : 'btn-outline-secondary'"
+                        t-on-click="() => this.selectServiceType(st.code)">
+                        <t t-esc="st.label"/>
+                    </button>
+                </div>
+            </section>
+
+            <t t-set-slot="footer">
+                <button class="btn btn-light me-auto" t-on-click="skip">
+                    Skip for now
+                </button>
+                <button
+                    class="btn btn-primary px-4"
+                    t-att-disabled="!canConfirm"
+                    t-on-click="confirm">
+                    Continue →
+                </button>
+            </t>
+
+        </Dialog>
+    </t>
+</templates>
