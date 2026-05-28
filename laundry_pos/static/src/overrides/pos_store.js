@@ -2,10 +2,8 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
-import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
-import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 
-// Cache the original productsToDisplay descriptor so we can call it from the patch
+// Cache the original productsToDisplay descriptor so we can call it safely
 const _originalProductsToDisplay = Object.getOwnPropertyDescriptor(
     PosStore.prototype,
     "productsToDisplay"
@@ -13,24 +11,16 @@ const _originalProductsToDisplay = Object.getOwnPropertyDescriptor(
 
 patch(PosStore.prototype, {
     /**
-     * Intercept new order creation to show the laundry setup modal.
-     * The modal collects Customer Type and Service Type before the
-     * POS product screen becomes interactive.
+     * Flag the newly created order so ProductScreen can show the laundry
+     * setup modal after navigation completes.
+     * NOTE: We do NOT make this async — doing so breaks the URL routing
+     * (order.uuid becomes undefined before navigation fires).
      */
-    async addNewOrder(data = {}) {
-        const result = await makeAwaitable(this.dialog, NewOrderModal, {});
-
-        const order = await super.addNewOrder({
-            ...data,
-            laundry_service_type: result?.serviceType || false,
-            laundry_customer_type: result?.customerType || false,
-        });
-
-        // After the modal, immediately open customer search/creation
-        if (result?.customerType) {
-            await this.selectPartner(order);
+    addNewOrder(data = {}) {
+        const order = super.addNewOrder(data);
+        if (order) {
+            order._needsLaundrySetup = true;
         }
-
         return order;
     },
 
