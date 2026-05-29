@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="laundry_pos.NewOrderModal">
-        <Dialog title="'New Laundry Order'" size="'md'">
+        <Dialog title="'New Laundry Order'" size="'lg'">
 
             <!-- Step 1: Customer Type -->
             <section class="mb-4">
@@ -16,6 +16,77 @@
                         t-on-click="() => this.selectCustomerType(ct.code)">
                         <t t-esc="ct.label"/>
                     </button>
+                </div>
+
+                <!-- Returning customer: inline search -->
+                <div t-if="state.customerType === 'returning'" class="mt-3">
+                    <input
+                        type="text"
+                        class="form-control form-control-lg"
+                        placeholder="Search by name, phone, or address..."
+                        t-att-value="state.partnerQuery"
+                        t-on-input="onSearchInput"
+                        autofocus="autofocus"
+                    />
+
+                    <!-- Selected customer row -->
+                    <div t-if="state.selectedPartner" class="mt-2 p-3 border rounded d-flex align-items-start gap-3" style="background:#f0fdf4;border-color:#86efac !important;">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold fs-6" t-esc="state.selectedPartner.name"/>
+                            <div t-if="state.selectedPartner.phone or state.selectedPartner.mobile" class="text-muted small mt-1">
+                                <t t-esc="state.selectedPartner.phone or state.selectedPartner.mobile"/>
+                            </div>
+                            <div t-if="partnerAddress(state.selectedPartner)" class="text-muted small">
+                                <t t-esc="partnerAddress(state.selectedPartner)"/>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" t-on-click="() => { state.selectedPartner = null; state.partnerQuery = ''; }">
+                            Change
+                        </button>
+                    </div>
+
+                    <!-- Search results list -->
+                    <div t-if="filteredPartners.length" class="mt-2 border rounded overflow-auto" style="max-height:320px;">
+                        <div
+                            t-foreach="filteredPartners"
+                            t-as="partner"
+                            t-key="partner.id"
+                            class="d-flex align-items-start gap-3 px-3 py-3 border-bottom"
+                            style="cursor:default;">
+
+                            <!-- Customer info — tap to select -->
+                            <div class="flex-grow-1" t-on-click="() => this.pickPartner(partner)" style="cursor:pointer;">
+                                <div class="fw-semibold fs-6" t-esc="partner.name"/>
+                                <div t-if="partner.phone or partner.mobile" class="text-muted small mt-1">
+                                    <t t-esc="partner.phone or partner.mobile"/>
+                                </div>
+                                <div t-if="partnerAddress(partner)" class="text-muted small">
+                                    <t t-esc="partnerAddress(partner)"/>
+                                </div>
+                                <div t-if="partnerTags(partner).length" class="mt-1 d-flex flex-wrap gap-1">
+                                    <span
+                                        t-foreach="partnerTags(partner)"
+                                        t-as="tag"
+                                        t-key="tag.id"
+                                        class="badge text-bg-secondary fw-normal">
+                                        <t t-esc="tag.name"/>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Edit Details button -->
+                            <button
+                                class="btn btn-sm btn-outline-primary flex-shrink-0 mt-1"
+                                t-on-click.stop="() => this.editPartner(partner)">
+                                Edit Details
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- No results message -->
+                    <div t-if="state.partnerQuery.trim().length > 0 and filteredPartners.length === 0 and !state.selectedPartner" class="mt-2 text-muted small text-center py-2">
+                        No customers found
+                    </div>
                 </div>
             </section>
 

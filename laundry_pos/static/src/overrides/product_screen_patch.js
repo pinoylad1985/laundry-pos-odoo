@@ -8,16 +8,13 @@ import { useEffect } from "@odoo/owl";
 
 patch(ProductScreen.prototype, {
     setup() {
-        // Run the original ProductScreen setup first (sets this.pos, this.dialog, etc.)
         super.setup();
 
-        // useEffect fires on mount AND whenever the current order's UUID changes,
-        // so it covers both "first open" and "switching to a new order".
         useEffect(
             () => {
                 const order = this.pos.getOrder();
                 if (order?._needsLaundrySetup) {
-                    order._needsLaundrySetup = false; // clear flag immediately to prevent re-trigger
+                    order._needsLaundrySetup = false;
                     this._showLaundrySetupModal(order);
                 }
             },
@@ -25,24 +22,21 @@ patch(ProductScreen.prototype, {
         );
     },
 
-    /**
-     * Show the New Order modal and apply the collected data to the order.
-     * Customer selection is opened automatically after the modal.
-     */
     async _showLaundrySetupModal(order) {
         const result = await makeAwaitable(this.dialog, NewOrderModal, {});
 
-        if (result) {
-            // Write service/customer type directly onto the order object.
-            // These fields are declared in _load_pos_data_fields on pos.order,
-            // so they will be included in the next sync_from_ui call.
-            order.laundry_service_type = result.serviceType;
-            order.laundry_customer_type = result.customerType;
+        if (!result) return; // skipped
 
-            // Open customer search or creation based on type
-            if (result.customerType) {
-                await this.pos.selectPartner(order);
-            }
+        order.laundry_service_type = result.serviceType;
+        order.laundry_customer_type = result.customerType;
+
+        if (result.editPartner) {
+            // Cashier clicked "Edit Details" on a result row — open the POS partner dialog
+            await this.pos.selectPartner(order);
+        } else if (result.partner) {
+            // Returning customer selected inline — apply directly
+            this.pos.setPartnerToCurrentOrder(result.partner);
         }
+        // New customer: cashier uses the Customer button below the cart as usual
     },
 });

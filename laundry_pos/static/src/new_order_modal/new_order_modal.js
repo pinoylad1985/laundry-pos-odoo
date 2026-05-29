@@ -27,16 +27,70 @@ export class NewOrderModal extends Component {
         this.state = useState({
             customerType: null,
             serviceType: null,
+            partnerQuery: "",
+            selectedPartner: null,
         });
         this.serviceTypes = SERVICE_TYPES;
     }
 
     selectCustomerType(type) {
         this.state.customerType = type;
+        this.state.partnerQuery = "";
+        this.state.selectedPartner = null;
     }
 
     selectServiceType(code) {
         this.state.serviceType = code;
+    }
+
+    onSearchInput(ev) {
+        this.state.partnerQuery = ev.target.value;
+        this.state.selectedPartner = null;
+    }
+
+    pickPartner(partner) {
+        this.state.selectedPartner = partner;
+        this.state.partnerQuery = "";
+    }
+
+    editPartner(partner) {
+        // Close this modal and open the standard POS partner edit screen
+        this.props.getPayload({
+            customerType: this.state.customerType,
+            serviceType: this.state.serviceType,
+            partner: null,
+            editPartner: partner,
+        });
+        this.props.close();
+    }
+
+    get filteredPartners() {
+        const query = this.state.partnerQuery.trim().toLowerCase();
+        if (!query) return [];
+        const all = this.pos.models["res.partner"]?.getAll() ?? [];
+        return all
+            .filter((p) => {
+                return (
+                    p.name?.toLowerCase().includes(query) ||
+                    p.phone?.toLowerCase().includes(query) ||
+                    p.mobile?.toLowerCase().includes(query) ||
+                    p.street?.toLowerCase().includes(query) ||
+                    p.street2?.toLowerCase().includes(query) ||
+                    p.city?.toLowerCase().includes(query)
+                );
+            })
+            .slice(0, 15);
+    }
+
+    partnerAddress(partner) {
+        return [partner.street, partner.street2, partner.city]
+            .filter(Boolean)
+            .join(", ");
+    }
+
+    partnerTags(partner) {
+        const tags = partner.category_id || [];
+        return tags.filter((t) => t?.name);
     }
 
     get canConfirm() {
@@ -48,12 +102,13 @@ export class NewOrderModal extends Component {
         this.props.getPayload({
             customerType: this.state.customerType,
             serviceType: this.state.serviceType,
+            partner: this.state.selectedPartner || null,
+            editPartner: null,
         });
         this.props.close();
     }
 
     skip() {
-        // Allow skipping — order proceeds without service type assignment
         this.props.getPayload(null);
         this.props.close();
     }
