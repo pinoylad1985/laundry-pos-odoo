@@ -1,19 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <!--
-        Inject the laundry order banner at the top of the ProductScreen left panel.
-        xpath targets the leftpane div — adjust if Odoo 19 uses a different class name.
+        Inject the laundry order banner at the top of the left panel.
+        Fully inline — no child component needed, so no registration timing issues.
     -->
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <xpath expr="//div[hasclass('leftpane')]" position="prepend">
-            <LaundryOrderBanner
-                mode="laundryState.mode"
-                flash="laundryState.flash"
-                serviceType="pos.getOrder()?.laundry_service_type || ''"
-                customerType="pos.getOrder()?.laundry_customer_type || ''"
-                partnerName="pos.getOrder()?.partner_id?.name || ''"
-                onSetup="() => this._showLaundrySetupModal(pos.getOrder(), true)"
-            />
+
+            <!-- Setup complete: green summary bar -->
+            <div t-if="laundryState.mode === 'submitted'"
+                 class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+                 style="background:#f0fdf4;min-height:52px;flex-shrink:0;">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge text-bg-primary" t-esc="_getLaundryServiceLabel()"/>
+                    <span class="fw-semibold" style="font-size:0.9rem;" t-esc="_getLaundryCustomerLabel()"/>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary"
+                        t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
+                    Change
+                </button>
+            </div>
+
+            <!-- Setup skipped: red warning bar — flashes white when cashier tries blocked actions -->
+            <div t-elif="laundryState.mode === 'skipped'"
+                 class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+                 t-att-style="'flex-shrink:0;min-height:52px;cursor:pointer;' + (laundryState.flash ? 'background:#ffffff;transition:none;' : 'background:#fee2e2;transition:background 0.6s ease;')"
+                 t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
+                <span class="fw-semibold" style="color:#dc2626;font-size:0.9rem;">
+                    ⚠ Tap here to complete New Order details
+                </span>
+                <button class="btn btn-sm btn-danger ms-2 flex-shrink-0"
+                        t-on-click.stop="() => this._showLaundrySetupModal(pos.getOrder(), true)">
+                    Set Up Now
+                </button>
+            </div>
+
         </xpath>
     </t>
 </templates>
