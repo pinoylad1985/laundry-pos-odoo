@@ -17,4 +17,18 @@ patch(PosStore.prototype, {
         }
         return order;
     },
+
+    /**
+     * Block the Customer button when laundry setup was skipped.
+     * Fires a DOM event so ProductScreen can flash the banner.
+     * _needsLaundrySetup is explicitly set to false (not undefined) only after
+     * the modal is shown, so existing orders without a service type are unaffected.
+     */
+    selectPartner(currentOrder = this.getOrder()) {
+        if (currentOrder?._needsLaundrySetup === false && !currentOrder?.laundry_service_type) {
+            document.dispatchEvent(new CustomEvent("laundry-flash-needed"));
+            return false;
+        }
+        return super.selectPartner(currentOrder);
+    },
 });

@@ -68,22 +68,23 @@ export class NewOrderModal extends Component {
         const query = this.state.partnerQuery.trim().toLowerCase();
         if (!query) return [];
         const all = this.pos.models["res.partner"]?.getAll() ?? [];
+        // Force string conversion — Odoo 19 model fields may be proxy objects, not plain strings
+        const s = (v) => String(v || "").toLowerCase();
         return all
-            .filter((p) => {
-                return (
-                    p.name?.toLowerCase().includes(query) ||
-                    p.phone?.toLowerCase().includes(query) ||
-                    p.mobile?.toLowerCase().includes(query) ||
-                    p.street?.toLowerCase().includes(query) ||
-                    p.street2?.toLowerCase().includes(query) ||
-                    p.city?.toLowerCase().includes(query)
-                );
-            })
+            .filter((p) =>
+                s(p.name).includes(query) ||
+                s(p.phone).includes(query) ||
+                s(p.mobile).includes(query) ||
+                s(p.street).includes(query) ||
+                s(p.street2).includes(query) ||
+                s(p.city).includes(query)
+            )
             .slice(0, 15);
     }
 
     partnerAddress(partner) {
         return [partner.street, partner.street2, partner.city]
+            .map((v) => String(v || "").trim())
             .filter(Boolean)
             .join(", ");
     }
