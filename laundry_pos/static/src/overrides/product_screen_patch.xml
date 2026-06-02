@@ -10,7 +10,11 @@
                      style="background:#f0fdf4;min-height:52px;flex-shrink:0;">
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge text-bg-primary" t-esc="_getLaundryServiceLabel()"/>
-                        <span class="fw-semibold" t-esc="_getLaundryCustomerLabel()"/>
+                        <span t-if="_getLaundryTurnaroundLabel()"
+                              class="badge"
+                              t-att-class="_getLaundryTurnaroundType() === 'express' ? 'text-bg-warning' : 'text-bg-success'"
+                              t-esc="_getLaundryTurnaroundLabel()"/>
+                        <span class="fw-semibold" style="font-size:0.85rem;" t-esc="_getLaundryCustomerLabel()"/>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary"
                             t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">

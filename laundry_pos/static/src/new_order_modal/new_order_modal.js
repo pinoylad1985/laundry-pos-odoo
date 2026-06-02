@@ -5,13 +5,23 @@ import { Dialog } from "@web/core/dialog/dialog";
 import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 
-const SERVICE_TYPES = [
-    { code: "dropoff", label: "Drop-off" },
-    { code: "dropoff_delivery", label: "Drop-off & Delivery" },
-    { code: "pickup_delivery", label: "Pickup & Delivery" },
-    { code: "locker", label: "Locker" },
-    { code: "self_service", label: "Self-service" },
+const SERVICES = [
+    { code: "wdf",   label: "Wash-Dry-Fold" },
+    { code: "press", label: "Press" },
+    { code: "dwc",   label: "Dry/Wet Clean" },
+    { code: "shoe",  label: "Shoe Clean" },
 ];
+
+const SERVICE_TYPES = [
+    { code: "dropoff",           label: "Drop-off" },
+    { code: "dropoff_delivery",  label: "Drop-off & Delivery" },
+    { code: "pickup_delivery",   label: "Pickup & Delivery" },
+    { code: "locker",            label: "Locker" },
+    { code: "self_service",      label: "Self-service" },
+];
+
+// Maps service code → state key
+const SVC_KEY = { wdf: "svcWdf", press: "svcPress", dwc: "svcDwc", shoe: "svcShoe" };
 
 export class NewOrderModal extends Component {
     static template = "laundry_pos.NewOrderModal";
@@ -25,22 +35,43 @@ export class NewOrderModal extends Component {
         this.pos = usePos();
         this.dialog = useService("dialog");
         this.state = useState({
+            // Step 1 — Customer
             customerType: null,
-            serviceType: null,
             partnerQuery: "",
             selectedPartner: null,
+            // Step 2 — Services (multi-select)
+            svcWdf: false,
+            svcPress: false,
+            svcDwc: false,
+            svcShoe: false,
+            // Step 3 — Service Type
+            serviceType: null,
+            // Step 4 — Schedule (flat keys to keep OWL reactivity simple)
+            claimDate: "",    claimHour: "",
+            deliveryDate: "", deliveryHour: "",
+            pickupDate: "",   pickupHour: "",
+            pdDelDate: "",    pdDelHour: "",
         });
+        this.services = SERVICES;
         this.serviceTypes = SERVICE_TYPES;
+        // Time options 8 AM – 9 PM
+        this.hourOptions = [];
+        for (let h = 8; h <= 21; h++) {
+            const suffix = h < 12 ? "AM" : "PM";
+            const display = h > 12 ? h - 12 : h;
+            this.hourOptions.push({
+                value: String(h).padStart(2, "0") + ":00",
+                label: `${display}:00 ${suffix}`,
+            });
+        }
     }
+
+    // ── Step 1: Customer ──────────────────────────────────────────────────
 
     selectCustomerType(type) {
         this.state.customerType = type;
         this.state.partnerQuery = "";
         this.state.selectedPartner = null;
-    }
-
-    selectServiceType(code) {
-        this.state.serviceType = code;
     }
 
     onSearchInput(ev) {
@@ -54,12 +85,14 @@ export class NewOrderModal extends Component {
     }
 
     editPartner(partner) {
-        // Close this modal and open the standard POS partner edit screen
         this.props.getPayload({
             customerType: this.state.customerType,
             serviceType: this.state.serviceType,
             partner: null,
             editPartner: partner,
+            services: this._getServices(),
+            schedule: this._getSchedule(),
+            turnaround: this.turnaroundType,
         });
         this.props.close();
     }
@@ -68,7 +101,6 @@ export class NewOrderModal extends Component {
         const query = this.state.partnerQuery.trim().toLowerCase();
         if (!query) return [];
         const all = this.pos.models["res.partner"]?.getAll() ?? [];
-        // Force string conversion — Odoo 19 model fields may be proxy objects, not plain strings
         const s = (v) => String(v || "").toLowerCase();
         return all
             .filter((p) =>
@@ -82,6 +114,14 @@ export class NewOrderModal extends Component {
             .slice(0, 15);
     }
 
+    get showNoResults() {
+        return (
+            !this.state.selectedPartner &&
+            this.state.partnerQuery.trim().length > 0 &&
+            this.filteredPartners.length === 0
+        );
+    }
+
     partnerAddress(partner) {
         return [partner.street, partner.street2, partner.city]
             .map((v) => String(v || "").trim())
@@ -90,21 +130,167 @@ export class NewOrderModal extends Component {
     }
 
     partnerTags(partner) {
-        const tags = partner.category_id || [];
-        return tags.filter((t) => t?.name);
+        return (partner.category_id || []).filter((t) => t?.name);
+    }
+
+    // ── Step 2: Services ──────────────────────────────────────────────────
+
+    toggleService(code) {
+        this.state[SVC_KEY[code]] = !this.state[SVC_KEY[code]];
+        // Changing services may change turnaround thresholds — reset schedule
+        this._resetSchedule();
+    }
+
+    isServiceSelected(code) {
+        return !!this.state[SVC_KEY[code]];
+    }
+
+    get hasAnyService() {
+        return this.state.svcWdf || this.state.svcPress ||
+               this.state.svcDwc || this.state.svcShoe;
+    }
+
+    // true when Dry/Wet Clean or Shoe Clean is included (longer turnaround)
+    get hasLongService() {
+        return this.state.svcDwc || this.state.svcShoe;
+    }
+
+    // ── Step 3: Service Type ──────────────────────────────────────────────
+
+    selectServiceType(code) {
+        this.state.serviceType = code;
+        this._resetSchedule();
+    }
+
+    _resetSchedule() {
+        this.state.claimDate = "";    this.state.claimHour = "";
+        this.state.deliveryDate = ""; this.state.deliveryHour = "";
+        this.state.pickupDate = "";   this.state.pickupHour = "";
+        this.state.pdDelDate = "";    this.state.pdDelHour = "";
+    }
+
+    // ── Step 4: Turnaround calculation (mirrors pos.html logic) ──────────
+
+    get turnaroundThreshold() {
+        const long = this.hasLongService;
+        const ret  = this.state.customerType === "returning";
+        return long ? (ret ? 48 : 72) : (ret ? 18 : 24);
+    }
+
+    get turnaroundMinHrs() {
+        return this.hasLongService ? 24 : 6;
+    }
+
+    _ms(dateVal, hourVal) {
+        if (!dateVal || !hourVal) return null;
+        return new Date(`${dateVal}T${hourVal}:00`).getTime();
+    }
+
+    get diffHours() {
+        const s  = this.state;
+        const st = s.serviceType;
+        if (st === "pickup_delivery" || st === "locker") {
+            const pu  = this._ms(s.pickupDate, s.pickupHour);
+            const del = this._ms(s.pdDelDate, s.pdDelHour);
+            if (pu && del) return Math.round((del - pu) / 3_600_000);
+        } else if (st === "dropoff") {
+            const claim = this._ms(s.claimDate, s.claimHour);
+            if (claim) return Math.round((claim - Date.now()) / 3_600_000);
+        } else if (st === "dropoff_delivery") {
+            const del = this._ms(s.deliveryDate, s.deliveryHour);
+            if (del) return Math.round((del - Date.now()) / 3_600_000);
+        }
+        return null;
+    }
+
+    get turnaroundType() {
+        const diff = this.diffHours;
+        if (diff === null) return null;
+        return diff < this.turnaroundThreshold ? "express" : "regular";
+    }
+
+    get turnaroundError() {
+        const diff = this.diffHours;
+        if (diff === null || diff >= this.turnaroundMinHrs) return null;
+        const who = this.hasLongService
+            ? "Shoe Clean / Dry-Wet Cleaning"
+            : "WDF / Press";
+        return `${who} requires at least ${this._fmt(this.turnaroundMinHrs)}`;
+    }
+
+    _fmt(hrs) {
+        if (hrs < 24) return `${hrs} hrs`;
+        const d = hrs / 24;
+        return `${d} day${d > 1 ? "s" : ""}`;
+    }
+
+    // Express: "6 hrs – under 24 hrs"
+    get expressLabel() {
+        return `${this._fmt(this.turnaroundMinHrs)} – under ${this._fmt(this.turnaroundThreshold)}`;
+    }
+
+    // Regular: "at least 24 hrs"
+    get regularLabel() {
+        return `at least ${this._fmt(this.turnaroundThreshold)}`;
+    }
+
+    // ── Validation ────────────────────────────────────────────────────────
+
+    get scheduleComplete() {
+        const s  = this.state;
+        const st = s.serviceType;
+        if (!st || st === "self_service") return true;
+        if (st === "dropoff")          return !!(s.claimDate && s.claimHour);
+        if (st === "dropoff_delivery") return !!(s.deliveryDate && s.deliveryHour);
+        // pickup_delivery or locker
+        return !!(s.pickupDate && s.pickupHour && s.pdDelDate && s.pdDelHour);
     }
 
     get canConfirm() {
-        return this.state.customerType !== null && this.state.serviceType !== null;
+        return !!(
+            this.state.customerType &&
+            this.hasAnyService &&
+            this.state.serviceType &&
+            this.scheduleComplete &&
+            !this.turnaroundError
+        );
+    }
+
+    // ── Payload helpers ───────────────────────────────────────────────────
+
+    _getServices() {
+        const codes = [];
+        if (this.state.svcWdf)   codes.push("wdf");
+        if (this.state.svcPress) codes.push("press");
+        if (this.state.svcDwc)   codes.push("dwc");
+        if (this.state.svcShoe)  codes.push("shoe");
+        return codes;
+    }
+
+    _getSchedule() {
+        const s  = this.state;
+        const st = s.serviceType;
+        if (!st || st === "self_service") return {};
+        if (st === "dropoff")
+            return { claimDate: s.claimDate, claimHour: s.claimHour };
+        if (st === "dropoff_delivery")
+            return { deliveryDate: s.deliveryDate, deliveryHour: s.deliveryHour };
+        return {
+            pickupDate: s.pickupDate,   pickupHour: s.pickupHour,
+            deliveryDate: s.pdDelDate,  deliveryHour: s.pdDelHour,
+        };
     }
 
     confirm() {
         if (!this.canConfirm) return;
         this.props.getPayload({
             customerType: this.state.customerType,
-            serviceType: this.state.serviceType,
-            partner: this.state.selectedPartner || null,
-            editPartner: null,
+            serviceType:  this.state.serviceType,
+            partner:      this.state.selectedPartner || null,
+            editPartner:  null,
+            services:     this._getServices(),
+            schedule:     this._getSchedule(),
+            turnaround:   this.turnaroundType,
         });
         this.props.close();
     }

@@ -74,6 +74,17 @@ patch(ProductScreen.prototype, {
         return "";
     },
 
+    _getLaundryTurnaroundLabel() {
+        const t = this.pos.getOrder()?.laundry_turnaround;
+        if (t === "express") return "⚡ Express";
+        if (t === "regular") return "🕐 Regular";
+        return "";
+    },
+
+    _getLaundryTurnaroundType() {
+        return this.pos.getOrder()?.laundry_turnaround || "";
+    },
+
     /**
      * @param {object} order
      * @param {boolean} isChange - when true, skipping keeps the existing setup intact
@@ -89,8 +100,11 @@ patch(ProductScreen.prototype, {
         }
 
         this.laundryState.mode = "submitted";
-        order.laundry_service_type = result.serviceType;
+        order.laundry_service_type  = result.serviceType;
         order.laundry_customer_type = result.customerType;
+        order.laundry_services      = result.services  || [];
+        order.laundry_schedule      = result.schedule  || {};
+        order.laundry_turnaround    = result.turnaround || null;
 
         if (result.editPartner) {
             await this.pos.selectPartner(order);
