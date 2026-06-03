@@ -4,11 +4,12 @@ import { Component, useState } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
+import { SERVICE_INSTRUCTIONS } from "@laundry_pos/utils/laundry_instructions";
 
 const SERVICES = [
     { code: "wdf",   label: "Wash-Dry-Fold" },
-    { code: "press", label: "Press" },
     { code: "dwc",   label: "Dry/Wet Clean" },
+    { code: "press", label: "Press" },
     { code: "shoe",  label: "Shoe Clean" },
 ];
 
@@ -45,6 +46,9 @@ export class NewOrderModal extends Component {
             svcPress: false,
             svcDwc: false,
             svcShoe: false,
+            // Step 2b — per-service instructions: { wdf: { soil, load, ... }, ... }
+            instructions: {},
+            expandedService: null,
             // Step 3 — Service Type
             serviceType: null,
             // Step 4 — Schedule (flat keys to keep OWL reactivity simple)
@@ -83,6 +87,9 @@ export class NewOrderModal extends Component {
         s.svcPress = codes.includes("press");
         s.svcDwc   = codes.includes("dwc");
         s.svcShoe  = codes.includes("shoe");
+
+        // Per-service instruction selections
+        s.instructions = data.instructions ? { ...data.instructions } : {};
 
         // Schedule — note storage uses deliveryDate/deliveryHour even for
         // pickup_delivery, which map to pdDelDate/pdDelHour in state.
@@ -127,6 +134,7 @@ export class NewOrderModal extends Component {
             partner: null,
             editPartner: partner,
             services: this._getServices(),
+            instructions: this._getInstructions(),
             schedule: this._getSchedule(),
             turnaround: this.turnaroundType,
         });
@@ -226,6 +234,54 @@ export class NewOrderModal extends Component {
     // true when Dry/Wet Clean or Shoe Clean is included (longer turnaround)
     get hasLongService() {
         return this.state.svcDwc || this.state.svcShoe;
+    }
+
+    // ── Per-service instructions (expandable) ─────────────────────────────
+
+    instructionFields(svc) {
+        return SERVICE_INSTRUCTIONS[svc] || [];
+    }
+
+    // code → label, for instruction panel headers
+    get servicesByCode() {
+        return Object.fromEntries(this.services.map((s) => [s.code, s.label]));
+    }
+
+    getInstr(svc, key) {
+        return this.state.instructions[svc]?.[key] ?? "";
+    }
+
+    setInstr(svc, key, value) {
+        if (!this.state.instructions[svc]) {
+            this.state.instructions[svc] = {};
+        }
+        this.state.instructions[svc][key] = value;
+    }
+
+    onInstrInput(svc, key, ev) {
+        this.setInstr(svc, key, ev.target.value);
+    }
+
+    toggleExpand(svc) {
+        this.state.expandedService = this.state.expandedService === svc ? null : svc;
+    }
+
+    isExpanded(svc) {
+        return this.state.expandedService === svc;
+    }
+
+    // Any instruction value set for this service? (drives the pill indicator)
+    hasInstructions(svc) {
+        const data = this.state.instructions[svc];
+        if (!data) return false;
+        return Object.values(data).some((v) => v !== "" && v != null);
+    }
+
+    // Services currently selected, in display order
+    get selectedServices() {
+        return this.services
+            .map((s) => s.code)
+            .filter((code) => this.isServiceSelected(code));
     }
 
     // ── Step 3: Service Type ──────────────────────────────────────────────
@@ -340,6 +396,18 @@ export class NewOrderModal extends Component {
         return codes;
     }
 
+    // Plain copy of instructions, limited to currently-selected services
+    _getInstructions() {
+        const out = {};
+        for (const code of this.selectedServices) {
+            const data = this.state.instructions[code];
+            if (data && Object.keys(data).length) {
+                out[code] = { ...data };
+            }
+        }
+        return out;
+    }
+
     _getSchedule() {
         const s  = this.state;
         const st = s.serviceType;
@@ -362,6 +430,7 @@ export class NewOrderModal extends Component {
             partner:      this.state.selectedPartner || null,
             editPartner:  null,
             services:     this._getServices(),
+            instructions: this._getInstructions(),
             schedule:     this._getSchedule(),
             turnaround:   this.turnaroundType,
         });
@@ -376,6 +445,7 @@ export class NewOrderModal extends Component {
             serviceType:  this.state.serviceType,
             partner:      this.state.selectedPartner || null,
             services:     this._getServices(),
+            instructions: this._getInstructions(),
             schedule:     this._getSchedule(),
             turnaround:   this.turnaroundType,
         });

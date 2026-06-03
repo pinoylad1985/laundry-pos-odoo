@@ -97,11 +97,61 @@
                 <p class="fw-semibold text-muted mb-2">3. Select Services</p>
                 <div class="row g-2">
                     <div t-foreach="services" t-as="svc" t-key="svc.code" class="col-6">
-                        <button class="btn w-100 py-3 fs-6"
+                        <button class="btn w-100 py-3 fs-6 position-relative"
                                 t-att-class="isServiceSelected(svc.code) ? 'btn-primary' : 'btn-outline-secondary'"
                                 t-on-click="() => this.toggleService(svc.code)">
                             <t t-esc="svc.label"/>
+                            <!-- Indicator: details available / details filled -->
+                            <span t-if="isServiceSelected(svc.code) &amp;&amp; instructionFields(svc.code).length"
+                                  class="badge position-absolute top-0 end-0 translate-middle-y me-1"
+                                  t-att-class="hasInstructions(svc.code) ? 'text-bg-light' : 'text-bg-warning'">
+                                <t t-esc="hasInstructions(svc.code) ? '✓' : '⚙'"/>
+                            </span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- Expandable instruction panels — one per selected service, collapsed by default -->
+                <div class="mt-2 d-flex flex-column gap-2">
+                    <div t-foreach="selectedServices" t-as="code" t-key="code"
+                         class="border rounded">
+                        <!-- Header -->
+                        <button type="button"
+                                class="btn w-100 d-flex align-items-center justify-content-between px-3 py-2 text-start"
+                                t-on-click="() => this.toggleExpand(code)">
+                            <span class="fw-semibold">
+                                <t t-esc="isExpanded(code) ? '▾' : '▸'"/>
+                                <t t-esc="' ' + servicesByCode[code]"/> details
+                                <span t-if="hasInstructions(code)" class="badge text-bg-success ms-1">set</span>
+                            </span>
+                        </button>
+
+                        <!-- Body -->
+                        <div t-if="isExpanded(code)" class="px-3 pb-3 pt-1 border-top">
+                            <div t-foreach="instructionFields(code)" t-as="field" t-key="field.key" class="mb-3">
+                                <label class="form-label fw-semibold small text-muted mb-1">
+                                    <t t-esc="field.label"/>
+                                    <span t-if="field.attr" class="badge text-bg-light ms-1" title="Pre-selects a product variant">variant</span>
+                                </label>
+
+                                <!-- Text field (e.g. Press Instructions) -->
+                                <input t-if="field.type === 'text'" type="text"
+                                       class="form-control"
+                                       placeholder="Optional notes..."
+                                       t-att-value="getInstr(code, field.key)"
+                                       t-on-input="(ev) => this.onInstrInput(code, field.key, ev)"/>
+
+                                <!-- Pill options (single-select) -->
+                                <div t-else="" class="d-flex flex-wrap gap-1">
+                                    <button t-foreach="field.options" t-as="opt" t-key="opt.value"
+                                            type="button" class="btn btn-sm"
+                                            t-att-class="getInstr(code, field.key) === opt.value ? 'btn-primary' : 'btn-outline-secondary'"
+                                            t-on-click="() => this.setInstr(code, field.key, opt.value)">
+                                        <t t-esc="opt.label"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

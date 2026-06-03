@@ -5,6 +5,11 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
+import {
+    SERVICE_INSTRUCTIONS,
+    SERVICE_PRODUCT_KEYWORDS,
+    SERVICE_TYPE_PREFIX,
+} from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
 const SERVICE_LABELS = {
@@ -33,9 +38,11 @@ patch(ProductScreen.prototype, {
                 if (stored?.status === "submitted" && !order?.laundry_service_type && order) {
                     order.laundry_service_type  = stored.serviceType;
                     order.laundry_customer_type = stored.customerType;
-                    order.laundry_services      = stored.services  || [];
-                    order.laundry_schedule      = stored.schedule  || {};
-                    order.laundry_turnaround    = stored.turnaround || null;
+                    order.laundry_services      = stored.services     || [];
+                    order.laundry_instructions  = stored.instructions || {};
+                    order.laundry_schedule      = stored.schedule     || {};
+                    order.laundry_turnaround    = stored.turnaround    || null;
+                    order._laundryCartPopulated = true; // lines already on the order after reload
                 }
 
                 if (order?.laundry_service_type) {
@@ -129,6 +136,7 @@ patch(ProductScreen.prototype, {
                 serviceType:  result.serviceType  || null,
                 customerType: result.customerType || null,
                 services:     result.services     || [],
+                instructions: result.instructions || {},
                 schedule:     result.schedule     || {},
                 turnaround:   result.turnaround   || null,
             });
@@ -155,18 +163,20 @@ patch(ProductScreen.prototype, {
 
         order.laundry_service_type  = result.serviceType;
         order.laundry_customer_type = result.customerType;
-        order.laundry_services      = result.services  || [];
-        order.laundry_schedule      = result.schedule  || {};
-        order.laundry_turnaround    = result.turnaround || null;
+        order.laundry_services      = result.services     || [];
+        order.laundry_instructions  = result.instructions || {};
+        order.laundry_schedule      = result.schedule     || {};
+        order.laundry_turnaround    = result.turnaround    || null;
 
         // Persist all details so they survive reload and pre-populate the Change modal
         lsSave(order?.uuid, {
             status:       "submitted",
             serviceType:  result.serviceType,
             customerType: result.customerType,
-            services:     result.services  || [],
-            schedule:     result.schedule  || {},
-            turnaround:   result.turnaround || null,
+            services:     result.services     || [],
+            instructions: result.instructions || {},
+            schedule:     result.schedule     || {},
+            turnaround:   result.turnaround    || null,
         });
 
         if (result.editPartner) {
@@ -174,6 +184,108 @@ patch(ProductScreen.prototype, {
         } else if (result.partner) {
             this.pos.setPartnerToCurrentOrder(result.partner);
         }
+
+        // Prepopulate the cart with the matching products (once per order)
+        await this._prepopulateLaundryCart(order, result);
+    },
+
+    // ── Cart pre-population + variant pre-selection ───────────────────────
+
+    /**
+     * Add one product per selected service, with attribute variants pre-set
+     * from the chosen instructions. Runs once per order.
+     */
+    async _prepopulateLaundryCart(order, result) {
+        if (!order || order._laundryCartPopulated) return;
+        order._laundryCartPopulated = true;
+        try {
+            for (const svc of result.services || []) {
+                const product = this._findServiceProduct(svc, result.serviceType);
+                if (!product) continue;
+                const ptavIds = this._resolveVariantValues(
+                    product, svc, (result.instructions || {})[svc] || {}, result.turnaround
+                );
+                await this._addConfiguredProduct(product, ptavIds);
+            }
+        } catch (e) {
+            console.warn("[laundry_pos] cart pre-population failed:", e);
+        }
+    },
+
+    // Find the POS product for a service, matching by name keyword. For WDF,
+    // also require the service-type prefix so the right product is picked.
+    _findServiceProduct(svc, serviceType) {
+        const keywords = SERVICE_PRODUCT_KEYWORDS[svc] || [];
+        const prefix = SERVICE_TYPE_PREFIX[serviceType];
+        const all = this.pos.models["product.template"]?.getAll() ?? [];
+        const matches = all.filter((p) => {
+            const name = String(p.name || "").toLowerCase();
+            if (!keywords.some((k) => name.includes(k))) return false;
+            // WDF products are service-type prefixed; others are not
+            if (svc === "wdf" && prefix) return name.startsWith(prefix);
+            return true;
+        });
+        return matches[0] || null;
+    },
+
+    // Map instruction selections (+ turnaround) to this product's
+    // product.template.attribute.value ids, matched by attribute & value name.
+    _resolveVariantValues(product, svc, svcInstructions, turnaround) {
+        const ids = [];
+        const lines = product.attribute_line_ids || [];
+
+        const pickValue = (line, predicate) => {
+            const ptavs = line.product_template_value_ids || [];
+            const hit = ptavs.find((v) => predicate(String(v.name || "")));
+            if (hit) ids.push(hit.id);
+        };
+
+        for (const line of lines) {
+            const attrName = line.attribute_id?.name || "";
+
+            // Turnaround attributes — names start with "Turnaround"
+            if (attrName.startsWith("Turnaround")) {
+                const wantExpress = turnaround === "express";
+                const soil = (svcInstructions.soil || "").toLowerCase();
+                pickValue(line, (vname) => {
+                    const v = vname.toLowerCase();
+                    const isExpress = v.includes("express");
+                    if (isExpress !== wantExpress) return false;
+                    // WDF "Turnaround Time" values embed soil level
+                    if (attrName === "Turnaround Time") {
+                        if (soil === "medium") return v.includes("medium");
+                        if (soil === "heavy")  return v.includes("heavy");
+                        return !v.includes("medium") && !v.includes("heavy");
+                    }
+                    return true;
+                });
+                continue;
+            }
+
+            // Instruction fields that map to a real attribute
+            const field = SERVICE_INSTRUCTIONS[svc]?.find((f) => f.attr === attrName);
+            if (field) {
+                const selected = svcInstructions[field.key];
+                if (selected) {
+                    pickValue(line, (vname) => vname.toLowerCase() === selected.toLowerCase());
+                }
+            }
+        }
+        return ids;
+    },
+
+    async _addConfiguredProduct(product, ptavIds) {
+        const ptavModel = this.pos.models["product.template.attribute.value"];
+        const links = ptavIds
+            .map((id) => ptavModel?.get(id))
+            .filter(Boolean)
+            .map((rec) => ["link", rec]);
+        const variant = product.product_variant_ids?.[0] || product;
+        await this.pos.addLineToCurrentOrder(
+            { product_id: variant, attribute_value_ids: links },
+            {},
+            false // do not open the configurator — values are pre-set
+        );
     },
 
     // Flash the banner instead of adding the product when setup is skipped
