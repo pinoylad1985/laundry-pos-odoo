@@ -4,6 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
+import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
 const SERVICE_LABELS = {
@@ -13,31 +14,6 @@ const SERVICE_LABELS = {
     locker: "Locker",
     self_service: "Self-service",
 };
-
-// ── localStorage helpers (survive POS reload / module re-entry) ─────────────
-// Unified store: { [uuid]: { status: 'skipped' | 'submitted', ...details } }
-const LS_KEY = "laundry_pos_orders";
-
-function _lsSave(uuid, data) {
-    if (!uuid) return;
-    try {
-        const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-        all[uuid] = data;
-        // Rotate out oldest entries when store grows large
-        const keys = Object.keys(all);
-        if (keys.length > 100) delete all[keys[0]];
-        localStorage.setItem(LS_KEY, JSON.stringify(all));
-    } catch {}
-}
-
-function _lsLoad(uuid) {
-    if (!uuid) return null;
-    try {
-        return JSON.parse(localStorage.getItem(LS_KEY) || "{}")[uuid] || null;
-    } catch {}
-    return null;
-}
-// ───────────────────────────────────────────────────────────────────────────
 
 patch(ProductScreen.prototype, {
     setup() {
@@ -50,7 +26,7 @@ patch(ProductScreen.prototype, {
         useEffect(
             () => {
                 const order = this.pos.getOrder();
-                const stored = _lsLoad(order?.uuid);
+                const stored = lsLoad(order?.uuid);
 
                 // Rehydrate JS-only fields from localStorage after a reload
                 // (laundry_* props are not synced to the server, so they vanish).
@@ -134,19 +110,42 @@ patch(ProductScreen.prototype, {
     async _showLaundrySetupModal(order, isChange) {
         if (order) order._laundrySetupProcessed = true;
 
-        // Pre-populate modal with previously saved details (survives reload)
-        const stored = _lsLoad(order?.uuid);
-        const initData = (stored?.status === "submitted") ? stored : null;
+        // Pre-populate modal with any previously saved details — whether the
+        // order was fully submitted OR skipped with partial selections.
+        const stored = lsLoad(order?.uuid);
+        const initData = (stored && (stored.serviceType || stored.customerType ||
+                          (stored.services || []).length)) ? stored : null;
 
         const result = await makeAwaitable(this.dialog, NewOrderModal, {
             initialData: initData || undefined,
         });
 
+        // Explicit "Skip for now" — save whatever was selected for later editing
+        if (result?.skipped) {
+            this.laundryState.mode = "skipped";
+            this.laundryState.turnaround = null;
+            lsSave(order?.uuid, {
+                status:       "skipped",
+                serviceType:  result.serviceType  || null,
+                customerType: result.customerType || null,
+                services:     result.services     || [],
+                schedule:     result.schedule     || {},
+                turnaround:   result.turnaround   || null,
+            });
+            // Keep any customer the cashier already picked
+            if (result.partner) {
+                this.pos.setPartnerToCurrentOrder(result.partner);
+            }
+            return;
+        }
+
+        // Closed via X / escape (no payload) — keep existing setup on Change,
+        // otherwise mark as skipped with nothing saved.
         if (!result) {
             if (!isChange) {
                 this.laundryState.mode = "skipped";
                 this.laundryState.turnaround = null;
-                _lsSave(order?.uuid, { status: "skipped" });
+                lsSave(order?.uuid, { status: "skipped" });
             }
             return;
         }
@@ -161,7 +160,7 @@ patch(ProductScreen.prototype, {
         order.laundry_turnaround    = result.turnaround || null;
 
         // Persist all details so they survive reload and pre-populate the Change modal
-        _lsSave(order?.uuid, {
+        lsSave(order?.uuid, {
             status:       "submitted",
             serviceType:  result.serviceType,
             customerType: result.customerType,
@@ -180,7 +179,7 @@ patch(ProductScreen.prototype, {
     // Flash the banner instead of adding the product when setup is skipped
     addProductToOrder(product) {
         const order = this.pos.getOrder();
-        const stored = _lsLoad(order?.uuid);
+        const stored = lsLoad(order?.uuid);
         if (
             (order?._laundrySetupProcessed || stored?.status === "skipped") &&
             !order?.laundry_service_type

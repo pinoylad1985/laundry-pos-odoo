@@ -355,7 +355,16 @@ export class NewOrderModal extends Component {
     }
 
     skip() {
-        this.props.getPayload(null);
+        // Save whatever was selected so far so it can be resumed/edited later
+        this.props.getPayload({
+            skipped:      true,
+            customerType: this.state.customerType,
+            serviceType:  this.state.serviceType,
+            partner:      this.state.selectedPartner || null,
+            services:     this._getServices(),
+            schedule:     this._getSchedule(),
+            turnaround:   this.turnaroundType,
+        });
         this.props.close();
     }
 }

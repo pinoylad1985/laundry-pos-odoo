@@ -2,6 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
+import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 
 patch(PosStore.prototype, {
     /**
@@ -30,5 +31,16 @@ patch(PosStore.prototype, {
             return false;
         }
         return super.selectPartner(currentOrder);
+    },
+
+    /**
+     * When an order is cancelled/deleted, drop its saved laundry details so
+     * stale data can't resurface if a future order reuses the same UUID.
+     * removeOrder is the foundational single-order removal that all
+     * deletion/cancellation flows funnel through.
+     */
+    removeOrder(order, removeFromServer = true) {
+        lsDelete(order?.uuid);
+        return super.removeOrder(order, removeFromServer);
     },
 });
