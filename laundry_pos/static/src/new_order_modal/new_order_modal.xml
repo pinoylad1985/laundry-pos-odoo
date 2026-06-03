@@ -128,14 +128,14 @@
                                    style="cursor:pointer;" t-model="state.claimDate"/>
                         </div>
                     </div>
-                    <select class="form-select" t-model="state.claimHour">
-                        <option value="">-- Time --</option>
-                        <option t-foreach="claimHourOptions" t-as="opt" t-key="opt.value"
-                                t-att-value="opt.value" t-esc="opt.label"/>
-                    </select>
+                    <t t-call="laundry_pos.HourPills">
+                        <t t-set="kind" t-value="'claim'"/>
+                        <t t-set="field" t-value="'claimHour'"/>
+                        <t t-set="selected" t-value="state.claimHour"/>
+                    </t>
                 </div>
 
-                <!-- Drop-off &amp; Delivery: Delivery date/time (6 AM – 12 AM) -->
+                <!-- Drop-off &amp; Delivery: Delivery date/time -->
                 <div t-if="state.serviceType === 'dropoff_delivery'" class="mb-3">
                     <label class="form-label fw-semibold small text-muted">
                         Delivery Date &amp; Time <span class="text-danger">*</span>
@@ -153,14 +153,14 @@
                                    style="cursor:pointer;" t-model="state.deliveryDate"/>
                         </div>
                     </div>
-                    <select class="form-select" t-model="state.deliveryHour">
-                        <option value="">-- Time --</option>
-                        <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
-                                t-att-value="opt.value" t-esc="opt.label"/>
-                    </select>
+                    <t t-call="laundry_pos.HourPills">
+                        <t t-set="kind" t-value="'delivery'"/>
+                        <t t-set="field" t-value="'deliveryHour'"/>
+                        <t t-set="selected" t-value="state.deliveryHour"/>
+                    </t>
                 </div>
 
-                <!-- Pickup &amp; Delivery / Locker: Pickup (6 AM – 12 AM) + Delivery (6 AM – 12 AM) -->
+                <!-- Pickup &amp; Delivery / Locker: Pickup + Delivery -->
                 <t t-if="state.serviceType === 'pickup_delivery' || state.serviceType === 'locker'">
                     <div class="mb-3">
                         <label class="form-label fw-semibold small text-muted">
@@ -179,11 +179,11 @@
                                        style="cursor:pointer;" t-model="state.pickupDate"/>
                             </div>
                         </div>
-                        <select class="form-select" t-model="state.pickupHour">
-                            <option value="">-- Time --</option>
-                            <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
-                                    t-att-value="opt.value" t-esc="opt.label"/>
-                        </select>
+                        <t t-call="laundry_pos.HourPills">
+                            <t t-set="kind" t-value="'pickup'"/>
+                            <t t-set="field" t-value="'pickupHour'"/>
+                            <t t-set="selected" t-value="state.pickupHour"/>
+                        </t>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold small text-muted">
@@ -202,11 +202,11 @@
                                        style="cursor:pointer;" t-model="state.pdDelDate"/>
                             </div>
                         </div>
-                        <select class="form-select" t-model="state.pdDelHour">
-                            <option value="">-- Time --</option>
-                            <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
-                                    t-att-value="opt.value" t-esc="opt.label"/>
-                        </select>
+                        <t t-call="laundry_pos.HourPills">
+                            <t t-set="kind" t-value="'delivery'"/>
+                            <t t-set="field" t-value="'pdDelHour'"/>
+                            <t t-set="selected" t-value="state.pdDelHour"/>
+                        </t>
                     </div>
                 </t>
 
@@ -239,5 +239,32 @@
             </t>
 
         </Dialog>
+    </t>
+
+    <!--
+        Reusable hour picker — two columns of 12 pills.
+        Caller sets: kind ('claim'|'pickup'|'delivery'), field (state key), selected (current value).
+    -->
+    <t t-name="laundry_pos.HourPills">
+        <div class="d-flex gap-2">
+            <div class="d-flex flex-column gap-1 flex-fill">
+                <button t-foreach="hoursAM" t-as="hr" t-key="hr.value"
+                        type="button" class="btn btn-sm"
+                        t-att-disabled="isHourDisabled(kind, hr.h)"
+                        t-att-class="isHourDisabled(kind, hr.h) ? 'btn-light text-muted disabled' : (selected === hr.value ? 'btn-primary' : 'btn-outline-secondary')"
+                        t-on-click="() => this.setHour(field, hr.value)">
+                    <t t-esc="hr.label"/>
+                </button>
+            </div>
+            <div class="d-flex flex-column gap-1 flex-fill">
+                <button t-foreach="hoursPM" t-as="hr" t-key="hr.value"
+                        type="button" class="btn btn-sm"
+                        t-att-disabled="isHourDisabled(kind, hr.h)"
+                        t-att-class="isHourDisabled(kind, hr.h) ? 'btn-light text-muted disabled' : (selected === hr.value ? 'btn-primary' : 'btn-outline-secondary')"
+                        t-on-click="() => this.setHour(field, hr.value)">
+                    <t t-esc="hr.label"/>
+                </button>
+            </div>
+        </div>
     </t>
 </templates>

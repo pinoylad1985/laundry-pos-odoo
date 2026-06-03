@@ -56,18 +56,15 @@ export class NewOrderModal extends Component {
         this.services = SERVICES;
         this.serviceTypes = SERVICE_TYPES;
 
-        const fmtHour = (h) => {
-            if (h === 0)  return "12:00 AM";
-            if (h === 12) return "12:00 PM";
-            return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
+        // Hour pills: two columns of 12 — AM (12 AM–11 AM) and PM (12 PM–11 PM)
+        const label = (h) => {
+            const ampm = h < 12 ? "AM" : "PM";
+            const disp = h % 12 === 0 ? 12 : h % 12;
+            return `${disp} ${ampm}`;
         };
-        const mkOpt = (h) => ({ value: String(h).padStart(2, "0") + ":00", label: fmtHour(h) });
-
-        // Claim (Drop-off): 6 AM – 3 AM (next day)
-        this.claimHourOptions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3].map(mkOpt);
-
-        // Pickup / Delivery: 6 AM – 12 AM (midnight)
-        this.pickupDeliveryHourOptions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0].map(mkOpt);
+        const mk = (h) => ({ h, value: String(h).padStart(2, "0") + ":00", label: label(h) });
+        this.hoursAM = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(mk);
+        this.hoursPM = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23].map(mk);
 
         // Pre-populate from previously submitted details (Change / after reload)
         this._applyInitialData(this.props.initialData);
@@ -190,6 +187,23 @@ export class NewOrderModal extends Component {
 
     setDate(field, value) {
         this.state[field] = value;
+    }
+
+    setHour(field, value) {
+        this.state[field] = value;
+    }
+
+    /**
+     * Whether an hour pill is unavailable for a given selector.
+     * @param {string} kind - 'claim' | 'pickup' | 'delivery'
+     * @param {number} h - hour 0..23
+     */
+    isHourDisabled(kind, h) {
+        // 4 AM–5 AM closed for every selector, regardless of service type
+        if (h === 4 || h === 5) return true;
+        if (kind === "pickup")   return h === 2 || h === 3; // +2 AM–3 AM
+        if (kind === "delivery") return h === 2 || h === 3; // +2 AM–3 AM
+        return false;
     }
 
     // ── Step 2: Services ──────────────────────────────────────────────────
