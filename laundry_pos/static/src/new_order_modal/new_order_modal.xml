@@ -110,63 +110,103 @@
             <section t-if="hasAnyService &amp;&amp; state.serviceType !== 'self_service'" class="mb-2">
                 <p class="fw-semibold text-muted mb-3">4. Schedule</p>
 
-                <!-- Drop-off: Claim date/time -->
+                <!-- Drop-off: Claim date/time (6 AM – 3 AM) -->
                 <div t-if="state.serviceType === 'dropoff'" class="mb-3">
                     <label class="form-label fw-semibold small text-muted">
                         Claim Date &amp; Time <span class="text-danger">*</span>
                     </label>
-                    <div class="d-flex gap-2">
-                        <input type="date" class="form-control flex-grow-1" t-model="state.claimDate"/>
-                        <select class="form-select" style="max-width:140px;" t-model="state.claimHour">
-                            <option value="">-- Time --</option>
-                            <option t-foreach="hourOptions" t-as="opt" t-key="opt.value"
-                                    t-att-value="opt.value" t-esc="opt.label"/>
-                        </select>
+                    <div class="d-flex gap-1 mb-2">
+                        <button t-foreach="quickDates" t-as="qd" t-key="qd.value"
+                                class="btn btn-sm flex-grow-1"
+                                t-att-class="state.claimDate === qd.value ? 'btn-primary' : 'btn-outline-secondary'"
+                                t-on-click="() => this.setDate('claimDate', qd.value)">
+                            <t t-esc="qd.label"/>
+                        </button>
+                        <div class="position-relative flex-shrink-0">
+                            <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
+                            <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                                   style="cursor:pointer;" t-model="state.claimDate"/>
+                        </div>
                     </div>
+                    <select class="form-select" t-model="state.claimHour">
+                        <option value="">-- Time --</option>
+                        <option t-foreach="claimHourOptions" t-as="opt" t-key="opt.value"
+                                t-att-value="opt.value" t-esc="opt.label"/>
+                    </select>
                 </div>
 
-                <!-- Drop-off &amp; Delivery: Delivery date/time -->
+                <!-- Drop-off &amp; Delivery: Delivery date/time (6 AM – 12 AM) -->
                 <div t-if="state.serviceType === 'dropoff_delivery'" class="mb-3">
                     <label class="form-label fw-semibold small text-muted">
                         Delivery Date &amp; Time <span class="text-danger">*</span>
                     </label>
-                    <div class="d-flex gap-2">
-                        <input type="date" class="form-control flex-grow-1" t-model="state.deliveryDate"/>
-                        <select class="form-select" style="max-width:140px;" t-model="state.deliveryHour">
-                            <option value="">-- Time --</option>
-                            <option t-foreach="hourOptions" t-as="opt" t-key="opt.value"
-                                    t-att-value="opt.value" t-esc="opt.label"/>
-                        </select>
+                    <div class="d-flex gap-1 mb-2">
+                        <button t-foreach="quickDates" t-as="qd" t-key="qd.value"
+                                class="btn btn-sm flex-grow-1"
+                                t-att-class="state.deliveryDate === qd.value ? 'btn-primary' : 'btn-outline-secondary'"
+                                t-on-click="() => this.setDate('deliveryDate', qd.value)">
+                            <t t-esc="qd.label"/>
+                        </button>
+                        <div class="position-relative flex-shrink-0">
+                            <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
+                            <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                                   style="cursor:pointer;" t-model="state.deliveryDate"/>
+                        </div>
                     </div>
+                    <select class="form-select" t-model="state.deliveryHour">
+                        <option value="">-- Time --</option>
+                        <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
+                                t-att-value="opt.value" t-esc="opt.label"/>
+                    </select>
                 </div>
 
-                <!-- Pickup &amp; Delivery / Locker: Pickup + Delivery dates -->
+                <!-- Pickup &amp; Delivery / Locker: Pickup (6 AM – 12 AM) + Delivery (6 AM – 12 AM) -->
                 <t t-if="state.serviceType === 'pickup_delivery' || state.serviceType === 'locker'">
                     <div class="mb-3">
                         <label class="form-label fw-semibold small text-muted">
                             Pickup Date &amp; Time <span class="text-danger">*</span>
                         </label>
-                        <div class="d-flex gap-2">
-                            <input type="date" class="form-control flex-grow-1" t-model="state.pickupDate"/>
-                            <select class="form-select" style="max-width:140px;" t-model="state.pickupHour">
-                                <option value="">-- Time --</option>
-                                <option t-foreach="hourOptions" t-as="opt" t-key="opt.value"
-                                        t-att-value="opt.value" t-esc="opt.label"/>
-                            </select>
+                        <div class="d-flex gap-1 mb-2">
+                            <button t-foreach="quickDates" t-as="qd" t-key="qd.value"
+                                    class="btn btn-sm flex-grow-1"
+                                    t-att-class="state.pickupDate === qd.value ? 'btn-primary' : 'btn-outline-secondary'"
+                                    t-on-click="() => this.setDate('pickupDate', qd.value)">
+                                <t t-esc="qd.label"/>
+                            </button>
+                            <div class="position-relative flex-shrink-0">
+                                <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
+                                <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                                       style="cursor:pointer;" t-model="state.pickupDate"/>
+                            </div>
                         </div>
+                        <select class="form-select" t-model="state.pickupHour">
+                            <option value="">-- Time --</option>
+                            <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
+                                    t-att-value="opt.value" t-esc="opt.label"/>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold small text-muted">
                             Delivery Date &amp; Time <span class="text-danger">*</span>
                         </label>
-                        <div class="d-flex gap-2">
-                            <input type="date" class="form-control flex-grow-1" t-model="state.pdDelDate"/>
-                            <select class="form-select" style="max-width:140px;" t-model="state.pdDelHour">
-                                <option value="">-- Time --</option>
-                                <option t-foreach="hourOptions" t-as="opt" t-key="opt.value"
-                                        t-att-value="opt.value" t-esc="opt.label"/>
-                            </select>
+                        <div class="d-flex gap-1 mb-2">
+                            <button t-foreach="quickDates" t-as="qd" t-key="qd.value"
+                                    class="btn btn-sm flex-grow-1"
+                                    t-att-class="state.pdDelDate === qd.value ? 'btn-primary' : 'btn-outline-secondary'"
+                                    t-on-click="() => this.setDate('pdDelDate', qd.value)">
+                                <t t-esc="qd.label"/>
+                            </button>
+                            <div class="position-relative flex-shrink-0">
+                                <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
+                                <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                                       style="cursor:pointer;" t-model="state.pdDelDate"/>
+                            </div>
                         </div>
+                        <select class="form-select" t-model="state.pdDelHour">
+                            <option value="">-- Time --</option>
+                            <option t-foreach="pickupDeliveryHourOptions" t-as="opt" t-key="opt.value"
+                                    t-att-value="opt.value" t-esc="opt.label"/>
+                        </select>
                     </div>
                 </t>
 

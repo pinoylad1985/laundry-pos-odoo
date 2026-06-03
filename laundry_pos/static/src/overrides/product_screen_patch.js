@@ -27,6 +27,9 @@ patch(ProductScreen.prototype, {
                 const order = this.pos.getOrder();
                 if (order?.laundry_service_type) {
                     this.laundryState.mode = "submitted";
+                } else if (order?._laundrySetupProcessed) {
+                    // Modal was already shown for this order but cashier skipped
+                    this.laundryState.mode = "skipped";
                 } else {
                     this.laundryState.mode = "idle";
                 }
@@ -90,6 +93,7 @@ patch(ProductScreen.prototype, {
      * @param {boolean} isChange - when true, skipping keeps the existing setup intact
      */
     async _showLaundrySetupModal(order, isChange) {
+        if (order) order._laundrySetupProcessed = true; // persist skipped state across order switches
         const result = await makeAwaitable(this.dialog, NewOrderModal, {});
 
         if (!result) {

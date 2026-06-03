@@ -54,16 +54,19 @@ export class NewOrderModal extends Component {
         });
         this.services = SERVICES;
         this.serviceTypes = SERVICE_TYPES;
-        // Time options 8 AM – 9 PM
-        this.hourOptions = [];
-        for (let h = 8; h <= 21; h++) {
-            const suffix = h < 12 ? "AM" : "PM";
-            const display = h > 12 ? h - 12 : h;
-            this.hourOptions.push({
-                value: String(h).padStart(2, "0") + ":00",
-                label: `${display}:00 ${suffix}`,
-            });
-        }
+
+        const fmtHour = (h) => {
+            if (h === 0)  return "12:00 AM";
+            if (h === 12) return "12:00 PM";
+            return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
+        };
+        const mkOpt = (h) => ({ value: String(h).padStart(2, "0") + ":00", label: fmtHour(h) });
+
+        // Claim (Drop-off): 6 AM – 3 AM (next day)
+        this.claimHourOptions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3].map(mkOpt);
+
+        // Pickup / Delivery: 6 AM – 12 AM (midnight)
+        this.pickupDeliveryHourOptions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0].map(mkOpt);
     }
 
     // ── Step 1: Customer ──────────────────────────────────────────────────
@@ -131,6 +134,26 @@ export class NewOrderModal extends Component {
 
     partnerTags(partner) {
         return (partner.category_id || []).filter((t) => t?.name);
+    }
+
+    // Returns [Today, Tomorrow, day-after] as { value: 'YYYY-MM-DD', label }
+    get quickDates() {
+        return [0, 1, 2].map((offset) => {
+            const d = new Date();
+            d.setDate(d.getDate() + offset);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const value = `${y}-${m}-${day}`;
+            const label = offset === 0 ? "Today"
+                        : offset === 1 ? "Tomorrow"
+                        : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            return { value, label };
+        });
+    }
+
+    setDate(field, value) {
+        this.state[field] = value;
     }
 
     // ── Step 2: Services ──────────────────────────────────────────────────
