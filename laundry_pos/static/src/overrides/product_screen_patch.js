@@ -229,45 +229,47 @@ patch(ProductScreen.prototype, {
     _resolveVariantValues(product, svc, svcInstructions, turnaround) {
         const ids = [];
         const lines = product.attribute_line_ids || [];
-
-        const pickValue = (line, predicate) => {
-            // Field name varies by POS build — try the known representations.
-            const ptavs = line.product_template_value_ids || line.values || [];
-            const hit = ptavs.find((v) => predicate(String(v.name || "")));
-            if (hit) ids.push(hit.id);
-        };
+        const wantExpress = turnaround === "express";
+        const soil = (svcInstructions.soil || "").toLowerCase();
+        const debug = [];
 
         for (const line of lines) {
-            const attrName = line.attribute_id?.name || line.name || "";
+            const attrName = line.attribute_id?.name || line.display_name || "";
+            const vals = line.product_template_value_ids || [];
+            if (!vals.length) continue;
 
-            // Turnaround attributes — names start with "Turnaround"
+            let chosen = null;
+
             if (attrName.startsWith("Turnaround")) {
-                const wantExpress = turnaround === "express";
-                const soil = (svcInstructions.soil || "").toLowerCase();
-                pickValue(line, (vname) => {
-                    const v = vname.toLowerCase();
-                    const isExpress = v.includes("express");
-                    if (isExpress !== wantExpress) return false;
-                    // WDF "Turnaround Time" values embed soil level
+                // Express/Regular from the schedule; WDF values also embed soil level
+                chosen = vals.find((v) => {
+                    const t = String(v.name || "").toLowerCase();
+                    if (t.includes("express") !== wantExpress) return false;
                     if (attrName === "Turnaround Time") {
-                        if (soil === "medium") return v.includes("medium");
-                        if (soil === "heavy")  return v.includes("heavy");
-                        return !v.includes("medium") && !v.includes("heavy");
+                        if (soil === "medium") return t.includes("medium");
+                        if (soil === "heavy")  return t.includes("heavy");
+                        return !t.includes("medium") && !t.includes("heavy");
                     }
                     return true;
                 });
-                continue;
-            }
-
-            // Instruction fields that map to a real attribute
-            const field = SERVICE_INSTRUCTIONS[svc]?.find((f) => f.attr === attrName);
-            if (field) {
-                const selected = svcInstructions[field.key];
+            } else {
+                const field = SERVICE_INSTRUCTIONS[svc]?.find((f) => f.attr === attrName);
+                const selected = field ? svcInstructions[field.key] : null;
                 if (selected) {
-                    pickValue(line, (vname) => vname.toLowerCase() === selected.toLowerCase());
+                    chosen = vals.find(
+                        (v) => String(v.name || "").toLowerCase() === selected.toLowerCase()
+                    );
                 }
             }
+
+            // Configure EVERY line — fall back to the first value — so the line
+            // is fully configured and our chosen values aren't overridden by defaults.
+            if (!chosen) chosen = vals[0];
+            ids.push(chosen.id);
+            debug.push(`${attrName}=${chosen.name}`);
         }
+
+        console.info("[laundry_pos] config", product.name, "→", debug.join(", "));
         return ids;
     },
 
