@@ -14,24 +14,63 @@ const SERVICE_LABELS = {
     self_service: "Self-service",
 };
 
+// ── localStorage helpers (survive POS reload / module re-entry) ─────────────
+// Unified store: { [uuid]: { status: 'skipped' | 'submitted', ...details } }
+const LS_KEY = "laundry_pos_orders";
+
+function _lsSave(uuid, data) {
+    if (!uuid) return;
+    try {
+        const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+        all[uuid] = data;
+        // Rotate out oldest entries when store grows large
+        const keys = Object.keys(all);
+        if (keys.length > 100) delete all[keys[0]];
+        localStorage.setItem(LS_KEY, JSON.stringify(all));
+    } catch {}
+}
+
+function _lsLoad(uuid) {
+    if (!uuid) return null;
+    try {
+        return JSON.parse(localStorage.getItem(LS_KEY) || "{}")[uuid] || null;
+    } catch {}
+    return null;
+}
+// ───────────────────────────────────────────────────────────────────────────
+
 patch(ProductScreen.prototype, {
     setup() {
         super.setup();
 
         // mode: 'idle' | 'submitted' | 'skipped'
-        this.laundryState = useState({ mode: "idle", flash: false });
+        this.laundryState = useState({ mode: "idle", flash: false, turnaround: null });
 
-        // Sync banner mode when switching between orders
+        // Sync banner mode when switching orders or returning to POS
         useEffect(
             () => {
                 const order = this.pos.getOrder();
+                const stored = _lsLoad(order?.uuid);
+
+                // Rehydrate JS-only fields from localStorage after a reload
+                // (laundry_* props are not synced to the server, so they vanish).
+                if (stored?.status === "submitted" && !order?.laundry_service_type && order) {
+                    order.laundry_service_type  = stored.serviceType;
+                    order.laundry_customer_type = stored.customerType;
+                    order.laundry_services      = stored.services  || [];
+                    order.laundry_schedule      = stored.schedule  || {};
+                    order.laundry_turnaround    = stored.turnaround || null;
+                }
+
                 if (order?.laundry_service_type) {
                     this.laundryState.mode = "submitted";
-                } else if (order?._laundrySetupProcessed) {
-                    // Modal was already shown for this order but cashier skipped
+                    this.laundryState.turnaround = stored?.turnaround || order?.laundry_turnaround || null;
+                } else if (stored?.status === "skipped" || order?._laundrySetupProcessed) {
                     this.laundryState.mode = "skipped";
+                    this.laundryState.turnaround = null;
                 } else {
                     this.laundryState.mode = "idle";
+                    this.laundryState.turnaround = null;
                 }
             },
             () => [this.pos.getOrder()?.uuid]
@@ -78,14 +117,14 @@ patch(ProductScreen.prototype, {
     },
 
     _getLaundryTurnaroundLabel() {
-        const t = this.pos.getOrder()?.laundry_turnaround;
+        const t = this.laundryState.turnaround;
         if (t === "express") return "⚡ Express";
         if (t === "regular") return "🕐 Regular";
         return "";
     },
 
     _getLaundryTurnaroundType() {
-        return this.pos.getOrder()?.laundry_turnaround || "";
+        return this.laundryState.turnaround || "";
     },
 
     /**
@@ -93,22 +132,43 @@ patch(ProductScreen.prototype, {
      * @param {boolean} isChange - when true, skipping keeps the existing setup intact
      */
     async _showLaundrySetupModal(order, isChange) {
-        if (order) order._laundrySetupProcessed = true; // persist skipped state across order switches
-        const result = await makeAwaitable(this.dialog, NewOrderModal, {});
+        if (order) order._laundrySetupProcessed = true;
+
+        // Pre-populate modal with previously saved details (survives reload)
+        const stored = _lsLoad(order?.uuid);
+        const initData = (stored?.status === "submitted") ? stored : null;
+
+        const result = await makeAwaitable(this.dialog, NewOrderModal, {
+            initialData: initData || undefined,
+        });
 
         if (!result) {
             if (!isChange) {
                 this.laundryState.mode = "skipped";
+                this.laundryState.turnaround = null;
+                _lsSave(order?.uuid, { status: "skipped" });
             }
             return;
         }
 
         this.laundryState.mode = "submitted";
+        this.laundryState.turnaround = result.turnaround;
+
         order.laundry_service_type  = result.serviceType;
         order.laundry_customer_type = result.customerType;
         order.laundry_services      = result.services  || [];
         order.laundry_schedule      = result.schedule  || {};
         order.laundry_turnaround    = result.turnaround || null;
+
+        // Persist all details so they survive reload and pre-populate the Change modal
+        _lsSave(order?.uuid, {
+            status:       "submitted",
+            serviceType:  result.serviceType,
+            customerType: result.customerType,
+            services:     result.services  || [],
+            schedule:     result.schedule  || {},
+            turnaround:   result.turnaround || null,
+        });
 
         if (result.editPartner) {
             await this.pos.selectPartner(order);
@@ -120,7 +180,11 @@ patch(ProductScreen.prototype, {
     // Flash the banner instead of adding the product when setup is skipped
     addProductToOrder(product) {
         const order = this.pos.getOrder();
-        if (order?._needsLaundrySetup === false && !order?.laundry_service_type) {
+        const stored = _lsLoad(order?.uuid);
+        if (
+            (order?._laundrySetupProcessed || stored?.status === "skipped") &&
+            !order?.laundry_service_type
+        ) {
             this._flashBanner();
             return;
         }

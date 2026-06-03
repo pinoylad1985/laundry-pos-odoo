@@ -29,6 +29,7 @@ export class NewOrderModal extends Component {
     static props = {
         getPayload: Function,
         close: Function,
+        initialData: { type: Object, optional: true },
     };
 
     setup() {
@@ -67,6 +68,41 @@ export class NewOrderModal extends Component {
 
         // Pickup / Delivery: 6 AM – 12 AM (midnight)
         this.pickupDeliveryHourOptions = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0].map(mkOpt);
+
+        // Pre-populate from previously submitted details (Change / after reload)
+        this._applyInitialData(this.props.initialData);
+    }
+
+    // Restore saved details into form state so the cashier can edit them
+    _applyInitialData(data) {
+        if (!data) return;
+        const s = this.state;
+        s.customerType = data.customerType || null;
+        s.serviceType  = data.serviceType  || null;
+
+        // Services array of codes → boolean flags
+        const codes = data.services || [];
+        s.svcWdf   = codes.includes("wdf");
+        s.svcPress = codes.includes("press");
+        s.svcDwc   = codes.includes("dwc");
+        s.svcShoe  = codes.includes("shoe");
+
+        // Schedule — note storage uses deliveryDate/deliveryHour even for
+        // pickup_delivery, which map to pdDelDate/pdDelHour in state.
+        const sched = data.schedule || {};
+        const st = data.serviceType;
+        if (st === "dropoff") {
+            s.claimDate = sched.claimDate || "";
+            s.claimHour = sched.claimHour || "";
+        } else if (st === "dropoff_delivery") {
+            s.deliveryDate = sched.deliveryDate || "";
+            s.deliveryHour = sched.deliveryHour || "";
+        } else if (st === "pickup_delivery" || st === "locker") {
+            s.pickupDate = sched.pickupDate || "";
+            s.pickupHour = sched.pickupHour || "";
+            s.pdDelDate  = sched.deliveryDate || "";
+            s.pdDelHour  = sched.deliveryHour || "";
+        }
     }
 
     // ── Step 1: Customer ──────────────────────────────────────────────────
