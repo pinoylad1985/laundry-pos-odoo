@@ -8,7 +8,6 @@ import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
     SERVICE_INSTRUCTIONS,
     SERVICE_PRODUCT_KEYWORDS,
-    SERVICE_TYPE_PREFIX,
 } from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
@@ -200,32 +199,28 @@ patch(ProductScreen.prototype, {
         order._laundryCartPopulated = true;
         try {
             for (const svc of result.services || []) {
-                const product = this._findServiceProduct(svc, result.serviceType);
-                if (!product) continue;
-                const ptavIds = this._resolveVariantValues(
-                    product, svc, (result.instructions || {})[svc] || {}, result.turnaround
-                );
-                await this._addConfiguredProduct(product, ptavIds);
+                const products = this._findServiceProducts(svc);
+                const svcInstr = (result.instructions || {})[svc] || {};
+                for (const product of products) {
+                    const ptavIds = this._resolveVariantValues(
+                        product, svc, svcInstr, result.turnaround
+                    );
+                    await this._addConfiguredProduct(product, ptavIds);
+                }
             }
         } catch (e) {
             console.warn("[laundry_pos] cart pre-population failed:", e);
         }
     },
 
-    // Find the POS product for a service, matching by name keyword. For WDF,
-    // also require the service-type prefix so the right product is picked.
-    _findServiceProduct(svc, serviceType) {
+    // Every POS product whose name contains a keyword for the service.
+    _findServiceProducts(svc) {
         const keywords = SERVICE_PRODUCT_KEYWORDS[svc] || [];
-        const prefix = SERVICE_TYPE_PREFIX[serviceType];
         const all = this.pos.models["product.template"]?.getAll() ?? [];
-        const matches = all.filter((p) => {
+        return all.filter((p) => {
             const name = String(p.name || "").toLowerCase();
-            if (!keywords.some((k) => name.includes(k))) return false;
-            // WDF products are service-type prefixed; others are not
-            if (svc === "wdf" && prefix) return name.startsWith(prefix);
-            return true;
+            return keywords.some((k) => name.includes(k));
         });
-        return matches[0] || null;
     },
 
     // Map instruction selections (+ turnaround) to this product's
@@ -235,13 +230,14 @@ patch(ProductScreen.prototype, {
         const lines = product.attribute_line_ids || [];
 
         const pickValue = (line, predicate) => {
-            const ptavs = line.product_template_value_ids || [];
+            // Field name varies by POS build — try the known representations.
+            const ptavs = line.product_template_value_ids || line.values || [];
             const hit = ptavs.find((v) => predicate(String(v.name || "")));
             if (hit) ids.push(hit.id);
         };
 
         for (const line of lines) {
-            const attrName = line.attribute_id?.name || "";
+            const attrName = line.attribute_id?.name || line.name || "";
 
             // Turnaround attributes — names start with "Turnaround"
             if (attrName.startsWith("Turnaround")) {
@@ -280,11 +276,18 @@ patch(ProductScreen.prototype, {
             .map((id) => ptavModel?.get(id))
             .filter(Boolean)
             .map((rec) => ["link", rec]);
-        const variant = product.product_variant_ids?.[0] || product;
+
+        console.info(
+            "[laundry_pos] adding", product.name,
+            "→ variant value ids:", ptavIds, "linked:", links.length
+        );
+
+        // addLineToOrder reads product_tmpl_id (the template); attribute_value_ids
+        // are ORM link commands. configure=false keeps the configurator closed.
         await this.pos.addLineToCurrentOrder(
-            { product_id: variant, attribute_value_ids: links },
+            { product_tmpl_id: product, attribute_value_ids: links },
             {},
-            false // do not open the configurator — values are pre-set
+            false
         );
     },
 

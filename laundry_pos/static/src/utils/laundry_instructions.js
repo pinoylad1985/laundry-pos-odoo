@@ -93,20 +93,10 @@ export const SERVICE_INSTRUCTIONS = {
 };
 
 // Service code → keywords matched (case-insensitive) against POS product names.
-// "press" maps to the "Steam" product since no product is literally named Press.
+// EVERY product whose name contains a keyword is added to the cart.
 export const SERVICE_PRODUCT_KEYWORDS = {
     wdf:   ["wash-dry-fold"],
     dwc:   ["dry/wet clean"],
-    press: ["steam"],
+    press: ["press"],
     shoe:  ["shoe clean"],
-};
-
-// Service type → name prefix used by service-type-specific products (WDF).
-// Matched against the part of the product name before the "|".
-export const SERVICE_TYPE_PREFIX = {
-    dropoff:          "drop-off |",
-    dropoff_delivery: "drop-off & delivery",
-    pickup_delivery:  "pickup & delivery",
-    locker:           "locker",
-    self_service:     null,
 };
