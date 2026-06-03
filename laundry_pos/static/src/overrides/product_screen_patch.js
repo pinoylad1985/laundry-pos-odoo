@@ -213,11 +213,12 @@ patch(ProductScreen.prototype, {
         }
     },
 
-    // Every POS product whose name contains a keyword for the service.
+    // Every non-archived POS product whose name contains a keyword for the service.
     _findServiceProducts(svc) {
         const keywords = SERVICE_PRODUCT_KEYWORDS[svc] || [];
         const all = this.pos.models["product.template"]?.getAll() ?? [];
         return all.filter((p) => {
+            if (p.active === false) return false; // skip archived
             const name = String(p.name || "").toLowerCase();
             return keywords.some((k) => name.includes(k));
         });
@@ -272,20 +273,21 @@ patch(ProductScreen.prototype, {
 
     async _addConfiguredProduct(product, ptavIds) {
         const ptavModel = this.pos.models["product.template.attribute.value"];
-        const links = ptavIds
-            .map((id) => ptavModel?.get(id))
-            .filter(Boolean)
-            .map((rec) => ["link", rec]);
+        const records = ptavIds.map((id) => ptavModel?.get(id)).filter(Boolean);
+        const links = records.map((rec) => ["link", rec]);
+        // configure=false bypasses the configurator, which is what normally sums
+        // the variants' price_extra into the line — so we must add it ourselves.
+        const priceExtra = records.reduce((sum, rec) => sum + (rec.price_extra || 0), 0);
 
         console.info(
             "[laundry_pos] adding", product.name,
-            "→ variant value ids:", ptavIds, "linked:", links.length
+            "→ value ids:", ptavIds, "linked:", links.length, "price_extra:", priceExtra
         );
 
         // addLineToOrder reads product_tmpl_id (the template); attribute_value_ids
-        // are ORM link commands. configure=false keeps the configurator closed.
+        // are ORM link commands.
         await this.pos.addLineToCurrentOrder(
-            { product_tmpl_id: product, attribute_value_ids: links },
+            { product_tmpl_id: product, attribute_value_ids: links, price_extra: priceExtra },
             {},
             false
         );
