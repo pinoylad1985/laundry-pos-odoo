@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.ReceiptHeader" t-inherit-mode="extension">
+
+        <!-- Customer name: larger + bold -->
+        <xpath expr="//span[@t-esc='order.partner_id.name']" position="attributes">
+            <attribute name="style">font-size: 1.5em; font-weight: bold;</attribute>
+        </xpath>
+
+        <!-- Phone: below the name, above the address -->
+        <xpath expr="//div[@t-if='order.partner_id.name']" position="after">
+            <div t-if="order.partner_id.phone">
+                <span t-esc="order.partner_id.phone"/>
+            </div>
+        </xpath>
+
+        <!-- Customer tags: below the address -->
+        <xpath expr="//div[@t-if='order.partner_id.pos_contact_address']" position="after">
+            <div t-if="order.partner_id.category_id and order.partner_id.category_id.length">
+                <t t-foreach="order.partner_id.category_id" t-as="tag" t-key="tag.id">
+                    <span t-esc="tag.name"/><t t-if="!tag_last">, </t>
+                </t>
+            </div>
+        </xpath>
+
+    </t>
+</templates>
