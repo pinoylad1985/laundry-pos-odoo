@@ -14,11 +14,11 @@
             </div>
         </xpath>
 
-        <!-- Customer tags: below the address -->
+        <!-- Customer tags: below the address (resolved id-or-record safe) -->
         <xpath expr="//div[@t-if='order.partner_id.pos_contact_address']" position="after">
-            <div t-if="order.partner_id.category_id and order.partner_id.category_id.length">
-                <t t-foreach="order.partner_id.category_id" t-as="tag" t-key="tag.id">
-                    <span t-esc="tag.name"/><t t-if="!tag_last">, </t>
+            <div t-if="laundryPartnerTags.length">
+                <t t-foreach="laundryPartnerTags" t-as="tag" t-key="tag_index">
+                    <span t-esc="tag"/><t t-if="!tag_last">, </t>
                 </t>
             </div>
         </xpath>

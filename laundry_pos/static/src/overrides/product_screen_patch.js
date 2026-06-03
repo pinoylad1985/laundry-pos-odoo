@@ -191,8 +191,8 @@ patch(ProductScreen.prototype, {
     // ── Cart pre-population + variant pre-selection ───────────────────────
 
     /**
-     * Add one product per selected service, with attribute variants pre-set
-     * from the chosen instructions. Runs once per order.
+     * Add one line per matching product for each selected service, with the
+     * turnaround variant and instruction attributes pre-set. Runs once per order.
      */
     async _prepopulateLaundryCart(order, result) {
         if (!order || order._laundryCartPopulated) return;
@@ -202,10 +202,7 @@ patch(ProductScreen.prototype, {
                 const products = this._findServiceProducts(svc);
                 const svcInstr = (result.instructions || {})[svc] || {};
                 for (const product of products) {
-                    const ptavIds = this._resolveVariantValues(
-                        product, svc, svcInstr, result.turnaround
-                    );
-                    await this._addConfiguredProduct(product, ptavIds);
+                    await this._addServiceProduct(product, svc, svcInstr, result.turnaround);
                 }
             }
         } catch (e) {
@@ -214,85 +211,131 @@ patch(ProductScreen.prototype, {
     },
 
     // Every non-archived POS product whose name contains a keyword for the service.
+    // Uses a LEADING word boundary so "press" never matches "(express)" items.
     _findServiceProducts(svc) {
         const keywords = SERVICE_PRODUCT_KEYWORDS[svc] || [];
         const all = this.pos.models["product.template"]?.getAll() ?? [];
         return all.filter((p) => {
             if (p.active === false) return false; // skip archived
             const name = String(p.name || "").toLowerCase();
-            return keywords.some((k) => name.includes(k));
+            return keywords.some((k) => {
+                const kw = k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                return new RegExp(`(^|[^a-z])${kw}`).test(name);
+            });
         });
     },
 
-    // Map instruction selections (+ turnaround) to this product's
-    // product.template.attribute.value ids, matched by attribute & value name.
-    _resolveVariantValues(product, svc, svcInstructions, turnaround) {
-        const ids = [];
-        const lines = product.attribute_line_ids || [];
+    /**
+     * Add one configured line for a product.
+     *
+     * Turnaround Time is a `create_variant="always"` attribute, so Express and
+     * Regular are SEPARATE product.product variants, each with its own price.
+     * With configure=false the configurator never runs, so linking a turnaround
+     * PTAV does nothing — POS just keeps product_variant_ids[0] (Regular). We
+     * must therefore pick the matching variant and pass it as `product_id`.
+     *
+     * Soil Level / Item / Steam Size / Hanger / Type are `no_variant` attributes:
+     * they don't create variants, so they go on the line via attribute_value_ids
+     * link commands, and their price_extra must be summed manually (configure=false
+     * skips the configurator's own price_extra summing).
+     */
+    async _addServiceProduct(product, svc, svcInstructions, turnaround) {
+        const variants = product.product_variant_ids || [];
         const wantExpress = turnaround === "express";
-        const soil = (svcInstructions.soil || "").toLowerCase();
-        const debug = [];
+        const soil = String(svcInstructions.soil || "").toLowerCase();
 
-        for (const line of lines) {
-            const attrName = line.attribute_id?.name || line.display_name || "";
+        // PTAV ids that actually define variants (the create_variant attribute).
+        const variantValueIds = new Set();
+        for (const v of variants) {
+            for (const pv of v.product_template_variant_value_ids || []) {
+                variantValueIds.add(pv.id);
+            }
+        }
+
+        // 1) Pick the variant matching the requested turnaround (Express/Regular).
+        const variant =
+            this._pickTurnaroundVariant(variants, wantExpress, soil) || variants[0] || null;
+
+        // 2) Resolve no_variant attribute lines from the instruction selections.
+        const links = [];
+        let priceExtra = 0;
+        const debug = [];
+        for (const line of product.attribute_line_ids || []) {
             const vals = line.product_template_value_ids || [];
             if (!vals.length) continue;
+            // Skip the variant-defining attribute — it's handled by product_id.
+            if (vals.some((v) => variantValueIds.has(v.id))) continue;
 
+            const attrName = line.attribute_id?.name || line.display_name || "";
+            const lowerAttr = attrName.toLowerCase();
             let chosen = null;
 
-            if (attrName.startsWith("Turnaround")) {
-                // Express/Regular from the schedule; WDF values also embed soil level
-                chosen = vals.find((v) => {
-                    const t = String(v.name || "").toLowerCase();
-                    if (t.includes("express") !== wantExpress) return false;
-                    if (attrName === "Turnaround Time") {
-                        if (soil === "medium") return t.includes("medium");
-                        if (soil === "heavy")  return t.includes("heavy");
-                        return !t.includes("medium") && !t.includes("heavy");
-                    }
-                    return true;
-                });
+            if (lowerAttr.includes("turnaround")) {
+                // No-variant turnaround (Press/DWC/Shoe): Regular / Express values
+                // with their own price_extra. (WDF's turnaround is a real variant
+                // and was already skipped above via variantValueIds.)
+                chosen = vals.find(
+                    (v) => String(v.name || "").toLowerCase().includes("express") === wantExpress
+                );
             } else {
-                const field = SERVICE_INSTRUCTIONS[svc]?.find((f) => f.attr === attrName);
+                const field = SERVICE_INSTRUCTIONS[svc]?.find(
+                    (f) => f.attr && lowerAttr.includes(f.attr.toLowerCase())
+                );
                 const selected = field ? svcInstructions[field.key] : null;
                 if (selected) {
                     chosen = vals.find(
-                        (v) => String(v.name || "").toLowerCase() === selected.toLowerCase()
+                        (v) => String(v.name || "").toLowerCase() === String(selected).toLowerCase()
                     );
                 }
             }
 
-            // Configure EVERY line — fall back to the first value — so the line
-            // is fully configured and our chosen values aren't overridden by defaults.
-            if (!chosen) chosen = vals[0];
-            ids.push(chosen.id);
+            if (!chosen) continue; // leave unset rather than forcing a wrong default
+            links.push(["link", chosen]);
+            priceExtra += chosen.price_extra || 0;
             debug.push(`${attrName}=${chosen.name}`);
         }
 
-        console.info("[laundry_pos] config", product.name, "→", debug.join(", "));
-        return ids;
+        console.info(
+            "[laundry_pos] add", product.name,
+            "→ variant:", variant?.name, "@", variant?.lst_price,
+            "| extras:", debug.join(", ") || "(none)", "| price_extra:", priceExtra
+        );
+
+        const vals = {
+            product_tmpl_id: product,
+            attribute_value_ids: links,
+            price_extra: priceExtra,
+        };
+        if (variant) vals.product_id = variant; // override the default Regular variant
+        await this.pos.addLineToCurrentOrder(vals, {}, false);
     },
 
-    async _addConfiguredProduct(product, ptavIds) {
-        const ptavModel = this.pos.models["product.template.attribute.value"];
-        const records = ptavIds.map((id) => ptavModel?.get(id)).filter(Boolean);
-        const links = records.map((rec) => ["link", rec]);
-        // configure=false bypasses the configurator, which is what normally sums
-        // the variants' price_extra into the line — so we must add it ourselves.
-        const priceExtra = records.reduce((sum, rec) => sum + (rec.price_extra || 0), 0);
-
-        console.info(
-            "[laundry_pos] adding", product.name,
-            "→ value ids:", ptavIds, "linked:", links.length, "price_extra:", priceExtra
-        );
-
-        // addLineToOrder reads product_tmpl_id (the template); attribute_value_ids
-        // are ORM link commands.
-        await this.pos.addLineToCurrentOrder(
-            { product_tmpl_id: product, attribute_value_ids: links, price_extra: priceExtra },
-            {},
-            false
-        );
+    /**
+     * Choose the product.product variant matching the requested turnaround.
+     * Express/Regular is read from the variant's value names; when those names
+     * also embed a soil level, prefer the one matching the chosen soil.
+     */
+    _pickTurnaroundVariant(variants, wantExpress, soil) {
+        let best = null;
+        let bestScore = -1;
+        for (const v of variants) {
+            const names = (v.product_template_variant_value_ids || [])
+                .map((pv) => String(pv.name || "").toLowerCase());
+            const turn = names.find((n) => n.includes("express") || n.includes("regular"));
+            if (turn === undefined) continue;                       // no turnaround dimension
+            if (turn.includes("express") !== wantExpress) continue; // wrong turnaround
+            let score = 1;
+            const embedsSoil =
+                turn.includes("light") || turn.includes("medium") || turn.includes("heavy");
+            if (soil && embedsSoil) {
+                score += turn.includes(soil) ? 1 : -1;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = v;
+            }
+        }
+        return best;
     },
 
     // Flash the banner instead of adding the product when setup is skipped

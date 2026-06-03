@@ -94,9 +94,13 @@ export const SERVICE_INSTRUCTIONS = {
 
 // Service code → keywords matched (case-insensitive) against POS product names.
 // EVERY product whose name contains a keyword is added to the cart.
+// NOTE: the Press/steam product is named "Steam" in the catalog (there is no
+// product literally named "Press"), so we match both. Matching is done with a
+// leading word boundary in product_screen_patch so "press" never matches the
+// "(express)" bedding items.
 export const SERVICE_PRODUCT_KEYWORDS = {
     wdf:   ["wash-dry-fold"],
     dwc:   ["dry/wet clean"],
-    press: ["press"],
+    press: ["press", "steam"],
     shoe:  ["shoe clean"],
 };
