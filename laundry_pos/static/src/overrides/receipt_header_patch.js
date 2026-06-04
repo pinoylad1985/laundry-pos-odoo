@@ -18,9 +18,11 @@ patch(ReceiptHeader.prototype, {
         const raw = Array.isArray(partner.category_id)
             ? partner.category_id
             : [...partner.category_id];
-        const catModel =
-            this.props.order.models?.["res.partner.category"] ||
-            partner.models?.["res.partner.category"];
+        // Preloaded partners expose category_id as category records; partners
+        // fetched on-demand (cashier search) expose them as raw ids — resolve
+        // those against the loaded res.partner.category model. Use the pos
+        // service registry, which is the reliable place to reach the models.
+        const catModel = this.env?.services?.pos?.models?.["res.partner.category"];
         return raw
             .map((c) => {
                 if (c && typeof c === "object") return c.name;   // already a record
