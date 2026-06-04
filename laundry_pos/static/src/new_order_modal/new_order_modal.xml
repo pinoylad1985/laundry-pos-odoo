@@ -60,9 +60,9 @@
                                     <t t-esc="partnerAddress(partner)"/>
                                 </div>
                                 <div t-if="partnerTags(partner).length" class="mt-1 d-flex flex-wrap gap-1">
-                                    <span t-foreach="partnerTags(partner)" t-as="tag" t-key="tag.id"
+                                    <span t-foreach="partnerTags(partner)" t-as="tag" t-key="tag_index"
                                           class="badge text-bg-secondary fw-normal">
-                                        <t t-esc="tag.name"/>
+                                        <t t-esc="tag"/>
                                     </span>
                                 </div>
                             </div>

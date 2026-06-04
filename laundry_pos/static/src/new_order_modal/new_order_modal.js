@@ -174,7 +174,11 @@ export class NewOrderModal extends Component {
     }
 
     partnerTags(partner) {
-        return (partner.category_id || []).filter((t) => t?.name);
+        // pos_tag_names is a comma-joined string computed server-side, so it is
+        // available for both pre-loaded and on-demand partners (unlike the
+        // category_id relation, whose category records aren't all loaded).
+        const names = String(partner.pos_tag_names || "");
+        return names ? names.split(",").map((s) => s.trim()).filter(Boolean) : [];
     }
 
     // Returns [Today, Tomorrow, day-after] as { value: 'YYYY-MM-DD', label }
