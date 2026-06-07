@@ -33,7 +33,6 @@ patch(ProductScreen.prototype, {
                 if (stored?.status === "submitted" && !order?.laundry_service_type && order) {
                     order.laundry_service_type  = stored.serviceType;
                     order.laundry_customer_type = stored.customerType;
-                    order.laundry_cart          = stored.cart       || [];
                     order.laundry_schedule      = stored.schedule   || {};
                     order.laundry_turnaround    = stored.turnaround || null;
                 }
@@ -113,8 +112,7 @@ patch(ProductScreen.prototype, {
         // Pre-populate modal with any previously saved details — whether the
         // order was fully submitted OR skipped with partial selections.
         const stored = lsLoad(order?.uuid);
-        const initData = (stored && (stored.serviceType || stored.customerType ||
-                          (stored.cart || []).length)) ? stored : null;
+        const initData = (stored && (stored.serviceType || stored.customerType)) ? stored : null;
 
         const result = await makeAwaitable(this.dialog, NewOrderModal, {
             initialData: initData || undefined,
@@ -128,7 +126,6 @@ patch(ProductScreen.prototype, {
                 status:       "skipped",
                 serviceType:  result.serviceType  || null,
                 customerType: result.customerType || null,
-                cart:         result.cart         || [],
                 schedule:     result.schedule     || {},
                 turnaround:   result.turnaround   || null,
             });
@@ -155,24 +152,17 @@ patch(ProductScreen.prototype, {
 
         order.laundry_service_type  = result.serviceType;
         order.laundry_customer_type = result.customerType;
-        order.laundry_cart          = result.cart       || [];
         order.laundry_schedule      = result.schedule   || {};
         order.laundry_turnaround    = result.turnaround || null;
 
-        // Sync the modal cart to the real order: remove the lines a previous
-        // submit added, then add the current selection (so post-submit edits via
-        // the Change banner reflect on the order without duplicating).
-        const addedLineUuids = await this._syncLaundryCart(order, result.cart);
-
-        // Persist all details so they survive reload and pre-populate the Change modal
+        // Products were already added to the order by the service pills; just
+        // persist the meta so it survives reload and pre-populates the Change modal.
         lsSave(order?.uuid, {
-            status:         "submitted",
-            serviceType:    result.serviceType,
-            customerType:   result.customerType,
-            cart:           result.cart       || [],
-            schedule:       result.schedule   || {},
-            turnaround:     result.turnaround || null,
-            addedLineUuids: addedLineUuids    || [],
+            status:       "submitted",
+            serviceType:  result.serviceType,
+            customerType: result.customerType,
+            schedule:     result.schedule   || {},
+            turnaround:   result.turnaround || null,
         });
 
         if (result.editPartner) {
@@ -180,79 +170,6 @@ patch(ProductScreen.prototype, {
         } else if (result.partner) {
             this.pos.setPartnerToCurrentOrder(result.partner);
         }
-    },
-
-    // ── Sync modal cart → real POS order ──────────────────────────────────
-
-    /**
-     * Reconcile the order's lines with the modal cart: remove the lines a
-     * previous submit added (tracked by uuid), then add one line per cart entry.
-     * Returns the new line uuids so the next edit (Change banner) can reconcile.
-     */
-    async _syncLaundryCart(order, cart) {
-        if (!order) return [];
-        try {
-            const stored = lsLoad(order.uuid) || {};
-            const prevUuids = stored.addedLineUuids || [];
-            if (prevUuids.length) {
-                for (const line of [...(order.lines || [])]) {
-                    if (prevUuids.includes(line.uuid)) this._removeOrderLine(order, line);
-                }
-            }
-            const addedUuids = [];
-            for (const entry of cart || []) {
-                const line = await this._addCartEntryToOrder(entry);
-                if (line?.uuid) addedUuids.push(line.uuid);
-            }
-            return addedUuids;
-        } catch (e) {
-            console.warn("[laundry_pos] cart sync failed:", e);
-            return [];
-        }
-    },
-
-    _removeOrderLine(order, line) {
-        try {
-            if (typeof order.removeOrderline === "function") order.removeOrderline(line);
-            else if (typeof line.delete === "function") line.delete();
-        } catch (e) {
-            console.warn("[laundry_pos] could not remove line:", e);
-        }
-    },
-
-    /**
-     * Add one order line for a modal cart entry, identically to how POS adds a
-     * configured product: resolve the create_variant="always" product.product
-     * from the chosen PTAVs (its price already includes the variant adjustment),
-     * link ALL chosen PTAVs, and use the configurator's price_extra as-is (it
-     * only covers the no_variant attributes). The cashier already configured the
-     * attributes via the real POS ProductConfiguratorPopup in the modal.
-     */
-    async _addCartEntryToOrder(entry) {
-        const product = this.pos.models["product.template"]?.get(entry.productTmplId);
-        if (!product) return null;
-        const ptavModel = this.pos.models["product.template.attribute.value"];
-        const selectedIds = entry.attributeValueIds || [];
-        const links = selectedIds
-            .map((id) => ptavModel?.get(id))
-            .filter(Boolean)
-            .map((rec) => ["link", rec]);
-
-        // Resolve the variant whose variant-defining values are all selected.
-        const variants = product.product_variant_ids || [];
-        let variant = variants.find((v) => {
-            const vv = (v.product_template_variant_value_ids || []).map((pv) => pv.id);
-            return vv.length && vv.every((id) => selectedIds.includes(id));
-        });
-        variant = variant || variants[0] || null;
-
-        const vals = {
-            product_tmpl_id: product,
-            attribute_value_ids: links,
-            price_extra: entry.priceExtra || 0,
-        };
-        if (variant) vals.product_id = variant;
-        return await this.pos.addLineToCurrentOrder(vals, {}, false);
     },
 
     // Flash the banner instead of adding the product when setup is skipped

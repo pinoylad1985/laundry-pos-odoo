@@ -4,10 +4,8 @@ import { Component, useState } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
-import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
-import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
-import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { LAUNDRY_MENU, LONG_SERVICE_CODES } from "@laundry_pos/utils/laundry_instructions";
+import { findLaundryProduct, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 const SERVICE_TYPES = [
     { code: "dropoff",           label: "Drop-off" },
@@ -34,10 +32,9 @@ export class NewOrderModal extends Component {
             customerType: null,
             partnerQuery: "",
             selectedPartner: null,
-            // Step 2 — Service menu cart (each tap = one entry)
-            // entry: { key, code, productTmplId, productName,
-            //          attributeValueIds:[], attributeCustomValues:[], priceExtra, configured }
-            cart: [],
+            // Step 2 — Services: pressing a pill adds the product to the REAL
+            // POS order. `rev` is bumped on each press to recompute pill state.
+            rev: 0,
             // Step 3 — Service Type
             serviceType: null,
             // Step 4 — Schedule (flat keys to keep OWL reactivity simple)
@@ -47,6 +44,7 @@ export class NewOrderModal extends Component {
             pdDelDate: "",    pdDelHour: "",
         });
         this.serviceTypes = SERVICE_TYPES;
+        this.services = LAUNDRY_MENU; // { code, label } pills
 
         // Hour pills: two columns of 12 — AM (12 AM–11 AM) and PM (12 PM–11 PM)
         const label = (h) => {
@@ -68,20 +66,6 @@ export class NewOrderModal extends Component {
         const s = this.state;
         s.customerType = data.customerType || null;
         s.serviceType  = data.serviceType  || null;
-
-        // Cart entries (products + chosen attributes)
-        s.cart = Array.isArray(data.cart)
-            ? data.cart.map((e) => ({
-                  key: e.key || this._uuid(),
-                  code: e.code,
-                  productTmplId: e.productTmplId,
-                  productName: e.productName,
-                  attributeValueIds: [...(e.attributeValueIds || [])],
-                  attributeCustomValues: e.attributeCustomValues || [],
-                  priceExtra: e.priceExtra || 0,
-                  configured: !!e.configured,
-              }))
-            : [];
 
         // Schedule — note storage uses deliveryDate/deliveryHour even for
         // pickup_delivery, which map to pdDelDate/pdDelHour in state.
@@ -125,7 +109,6 @@ export class NewOrderModal extends Component {
             serviceType: this.state.serviceType,
             partner: null,
             editPartner: partner,
-            cart: this._getCart(),
             schedule: this._getSchedule(),
             turnaround: this.turnaroundType,
         });
@@ -172,103 +155,42 @@ export class NewOrderModal extends Component {
         return names ? names.split(",").map((s) => s.trim()).filter(Boolean) : [];
     }
 
-    // ── Step 2: Service menu + cart ───────────────────────────────────────
+    // ── Step 2: Services (pills add unconfigured products to the order) ────
 
-    _uuid() {
-        return (globalThis.crypto?.randomUUID?.() ||
-            "k" + Math.random().toString(36).slice(2) + Date.now());
+    // Pressing a pill adds the matching product to the REAL POS order as a new
+    // unconfigured line (variants/attributes are chosen later in the cart).
+    addService(code) {
+        const product = findLaundryProduct(this.pos, code);
+        if (!product) return;
+        this.pos.addLineToCurrentOrder({ product_tmpl_id: product }, {}, false);
+        this.state.rev++; // recompute pill highlight + turnaround
     }
 
-    _productById(id) {
-        return this.pos.models["product.template"]?.get(id);
-    }
-
-    // Find the single live POS product.template for a menu match keyword.
-    // Leading word boundary so "press" never matches "(express)" items.
-    _matchProduct(match) {
-        const kw = String(match).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const re = new RegExp(`(^|[^a-z])${kw}`);
-        const all = this.pos.models["product.template"]?.getAll() ?? [];
-        return all.find(
-            (p) =>
-                p.active !== false &&
-                p.available_in_pos !== false &&
-                re.test(String(p.name || "").toLowerCase())
+    // Laundry lines currently on the order (rev makes this reactive to presses).
+    _orderLaundryLines() {
+        void this.state.rev; // reactive dependency
+        const order = this.pos.getOrder();
+        return (order?.lines || []).filter((l) =>
+            laundryCodeForProduct(l.product_id?.product_tmpl_id)
         );
     }
 
-    // The 4 menu items resolved to live products (drops any not found in POS).
-    get menuProducts() {
-        return LAUNDRY_MENU.map((item) => ({
-            ...item,
-            product: this._matchProduct(item.match),
-        })).filter((item) => item.product);
+    // Pill is highlighted while the order holds >=1 line of that product.
+    isServiceSelected(code) {
+        return this._orderLaundryLines().some(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === code
+        );
     }
 
-    productPrice(product) {
-        const price = product?.lst_price ?? product?.list_price;
-        if (price == null) return "";
-        try { return this.env.utils.formatCurrency(price); } catch {}
-        try { return this.pos.env.utils.formatCurrency(price); } catch {}
-        return String(price);
+    get hasAnyService() {
+        return this._orderLaundryLines().length > 0;
     }
 
-    // Each tap adds the product as its own cart line (no qty-merging).
-    addToCart(item) {
-        if (!item?.product) return;
-        this.state.cart.push({
-            key: this._uuid(),
-            code: item.code,
-            productTmplId: item.product.id,
-            productName: item.product.name,
-            attributeValueIds: [],
-            attributeCustomValues: [],
-            priceExtra: 0,
-            configured: false,
-        });
-    }
-
-    removeLine(key) {
-        const i = this.state.cart.findIndex((e) => e.key === key);
-        if (i !== -1) this.state.cart.splice(i, 1);
-    }
-
-    // Open the real POS configurator for this line and store the selection.
-    async configureLine(entry) {
-        const product = this._productById(entry.productTmplId);
-        if (!product) return;
-        const payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
-            productTemplate: product,
-        });
-        if (!payload) return; // cancelled
-        entry.attributeValueIds = payload.attribute_value_ids || [];
-        entry.attributeCustomValues = payload.attribute_custom_values || [];
-        entry.priceExtra = payload.price_extra || 0;
-        entry.configured = true;
-    }
-
-    // Selected attribute value names for display chips.
-    attrNames(entry) {
-        const model = this.pos.models["product.template.attribute.value"];
-        return (entry.attributeValueIds || [])
-            .map((id) => model?.get(id)?.name)
-            .filter(Boolean);
-    }
-
-    // A configurable product (has attribute lines) with nothing chosen yet.
-    needsConfig(entry) {
-        const product = this._productById(entry.productTmplId);
-        const hasAttrs = (product?.attribute_line_ids || []).length > 0;
-        return hasAttrs && (entry.attributeValueIds || []).length === 0;
-    }
-
-    get unconfigured() {
-        return this.state.cart.filter((e) => this.needsConfig(e));
-    }
-
-    // true when Dry/Wet Clean or Shoe Clean is in the cart (longer turnaround)
+    // true when Dry/Wet Clean or Shoe Clean is on the order (longer turnaround)
     get hasLongService() {
-        return this.state.cart.some((e) => LONG_SERVICE_CODES.includes(e.code));
+        return this._orderLaundryLines().some((l) =>
+            LONG_SERVICE_CODES.includes(laundryCodeForProduct(l.product_id?.product_tmpl_id))
+        );
     }
 
     // ── Step 3: Service Type ──────────────────────────────────────────────
@@ -401,11 +323,11 @@ export class NewOrderModal extends Component {
     }
 
     get canConfirm() {
-        // Attribute selection is intentionally NOT required here — it is
-        // enforced at submit (confirm) with an error popup instead.
+        // Variant/attribute selection happens later in the main POS cart and is
+        // enforced at payment, so it is not required to confirm the modal.
         return !!(
             this.state.customerType &&
-            this.state.cart.length &&
+            this.hasAnyService &&
             this.state.serviceType &&
             this.scheduleComplete &&
             !this.turnaroundError
@@ -413,19 +335,6 @@ export class NewOrderModal extends Component {
     }
 
     // ── Payload helpers ───────────────────────────────────────────────────
-
-    _getCart() {
-        return this.state.cart.map((e) => ({
-            key: e.key,
-            code: e.code,
-            productTmplId: e.productTmplId,
-            productName: e.productName,
-            attributeValueIds: [...(e.attributeValueIds || [])],
-            attributeCustomValues: e.attributeCustomValues || [],
-            priceExtra: e.priceExtra || 0,
-            configured: !!e.configured,
-        }));
-    }
 
     _getSchedule() {
         const s  = this.state;
@@ -443,22 +352,11 @@ export class NewOrderModal extends Component {
 
     confirm() {
         if (!this.canConfirm) return;
-        // Enforce attribute selection only now, with a reminder popup.
-        const missing = this.unconfigured;
-        if (missing.length) {
-            const names = [...new Set(missing.map((e) => e.productName))].join(", ");
-            this.dialog.add(AlertDialog, {
-                title: "Select product options",
-                body: `Please set the attributes for: ${names}`,
-            });
-            return;
-        }
         this.props.getPayload({
             customerType: this.state.customerType,
             serviceType:  this.state.serviceType,
             partner:      this.state.selectedPartner || null,
             editPartner:  null,
-            cart:         this._getCart(),
             schedule:     this._getSchedule(),
             turnaround:   this.turnaroundType,
         });
@@ -472,7 +370,6 @@ export class NewOrderModal extends Component {
             customerType: this.state.customerType,
             serviceType:  this.state.serviceType,
             partner:      this.state.selectedPartner || null,
-            cart:         this._getCart(),
             schedule:     this._getSchedule(),
             turnaround:   this.turnaroundType,
         });

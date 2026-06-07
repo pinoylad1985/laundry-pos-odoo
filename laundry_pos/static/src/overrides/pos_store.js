@@ -2,7 +2,9 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
+import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
+import { lineNeedsConfig } from "@laundry_pos/utils/laundry_products";
 
 patch(PosStore.prototype, {
     /**
@@ -42,5 +44,28 @@ patch(PosStore.prototype, {
     removeOrder(order, removeFromServer = true) {
         lsDelete(order?.uuid);
         return super.removeOrder(order, removeFromServer);
+    },
+
+    /**
+     * Block going to payment while any laundry product line still has its
+     * variants/attributes unselected. Both Pay buttons funnel through pos.pay().
+     */
+    async pay() {
+        const order = this.getOrder();
+        const missing = (order?.lines || []).filter((l) => lineNeedsConfig(l));
+        if (missing.length) {
+            const names = [
+                ...new Set(
+                    missing.map((l) => l.product_id?.product_tmpl_id?.name).filter(Boolean)
+                ),
+            ].join(", ");
+            const dialog = this.dialog || this.env?.services?.dialog;
+            dialog?.add(AlertDialog, {
+                title: "Select product options",
+                body: `Please choose options for these products before payment: ${names}`,
+            });
+            return;
+        }
+        return super.pay(...arguments);
     },
 });
