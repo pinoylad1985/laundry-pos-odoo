@@ -5,10 +5,6 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
-import {
-    SERVICE_INSTRUCTIONS,
-    SERVICE_PRODUCT_KEYWORDS,
-} from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
 const SERVICE_LABELS = {
@@ -37,11 +33,9 @@ patch(ProductScreen.prototype, {
                 if (stored?.status === "submitted" && !order?.laundry_service_type && order) {
                     order.laundry_service_type  = stored.serviceType;
                     order.laundry_customer_type = stored.customerType;
-                    order.laundry_services      = stored.services     || [];
-                    order.laundry_instructions  = stored.instructions || {};
-                    order.laundry_schedule      = stored.schedule     || {};
-                    order.laundry_turnaround    = stored.turnaround    || null;
-                    order._laundryCartPopulated = true; // lines already on the order after reload
+                    order.laundry_cart          = stored.cart       || [];
+                    order.laundry_schedule      = stored.schedule   || {};
+                    order.laundry_turnaround    = stored.turnaround || null;
                 }
 
                 if (order?.laundry_service_type) {
@@ -120,7 +114,7 @@ patch(ProductScreen.prototype, {
         // order was fully submitted OR skipped with partial selections.
         const stored = lsLoad(order?.uuid);
         const initData = (stored && (stored.serviceType || stored.customerType ||
-                          (stored.services || []).length)) ? stored : null;
+                          (stored.cart || []).length)) ? stored : null;
 
         const result = await makeAwaitable(this.dialog, NewOrderModal, {
             initialData: initData || undefined,
@@ -134,8 +128,7 @@ patch(ProductScreen.prototype, {
                 status:       "skipped",
                 serviceType:  result.serviceType  || null,
                 customerType: result.customerType || null,
-                services:     result.services     || [],
-                instructions: result.instructions || {},
+                cart:         result.cart         || [],
                 schedule:     result.schedule     || {},
                 turnaround:   result.turnaround   || null,
             });
@@ -162,20 +155,24 @@ patch(ProductScreen.prototype, {
 
         order.laundry_service_type  = result.serviceType;
         order.laundry_customer_type = result.customerType;
-        order.laundry_services      = result.services     || [];
-        order.laundry_instructions  = result.instructions || {};
-        order.laundry_schedule      = result.schedule     || {};
-        order.laundry_turnaround    = result.turnaround    || null;
+        order.laundry_cart          = result.cart       || [];
+        order.laundry_schedule      = result.schedule   || {};
+        order.laundry_turnaround    = result.turnaround || null;
+
+        // Sync the modal cart to the real order: remove the lines a previous
+        // submit added, then add the current selection (so post-submit edits via
+        // the Change banner reflect on the order without duplicating).
+        const addedLineUuids = await this._syncLaundryCart(order, result.cart);
 
         // Persist all details so they survive reload and pre-populate the Change modal
         lsSave(order?.uuid, {
-            status:       "submitted",
-            serviceType:  result.serviceType,
-            customerType: result.customerType,
-            services:     result.services     || [],
-            instructions: result.instructions || {},
-            schedule:     result.schedule     || {},
-            turnaround:   result.turnaround    || null,
+            status:         "submitted",
+            serviceType:    result.serviceType,
+            customerType:   result.customerType,
+            cart:           result.cart       || [],
+            schedule:       result.schedule   || {},
+            turnaround:     result.turnaround || null,
+            addedLineUuids: addedLineUuids    || [],
         });
 
         if (result.editPartner) {
@@ -183,159 +180,79 @@ patch(ProductScreen.prototype, {
         } else if (result.partner) {
             this.pos.setPartnerToCurrentOrder(result.partner);
         }
-
-        // Prepopulate the cart with the matching products (once per order)
-        await this._prepopulateLaundryCart(order, result);
     },
 
-    // ── Cart pre-population + variant pre-selection ───────────────────────
+    // ── Sync modal cart → real POS order ──────────────────────────────────
 
     /**
-     * Add one line per matching product for each selected service, with the
-     * turnaround variant and instruction attributes pre-set. Runs once per order.
+     * Reconcile the order's lines with the modal cart: remove the lines a
+     * previous submit added (tracked by uuid), then add one line per cart entry.
+     * Returns the new line uuids so the next edit (Change banner) can reconcile.
      */
-    async _prepopulateLaundryCart(order, result) {
-        if (!order || order._laundryCartPopulated) return;
-        order._laundryCartPopulated = true;
+    async _syncLaundryCart(order, cart) {
+        if (!order) return [];
         try {
-            for (const svc of result.services || []) {
-                const products = this._findServiceProducts(svc);
-                const svcInstr = (result.instructions || {})[svc] || {};
-                for (const product of products) {
-                    await this._addServiceProduct(product, svc, svcInstr, result.turnaround);
+            const stored = lsLoad(order.uuid) || {};
+            const prevUuids = stored.addedLineUuids || [];
+            if (prevUuids.length) {
+                for (const line of [...(order.lines || [])]) {
+                    if (prevUuids.includes(line.uuid)) this._removeOrderLine(order, line);
                 }
             }
+            const addedUuids = [];
+            for (const entry of cart || []) {
+                const line = await this._addCartEntryToOrder(entry);
+                if (line?.uuid) addedUuids.push(line.uuid);
+            }
+            return addedUuids;
         } catch (e) {
-            console.warn("[laundry_pos] cart pre-population failed:", e);
+            console.warn("[laundry_pos] cart sync failed:", e);
+            return [];
         }
     },
 
-    // Every non-archived POS product whose name contains a keyword for the service.
-    // Uses a LEADING word boundary so "press" never matches "(express)" items.
-    _findServiceProducts(svc) {
-        const keywords = SERVICE_PRODUCT_KEYWORDS[svc] || [];
-        const all = this.pos.models["product.template"]?.getAll() ?? [];
-        return all.filter((p) => {
-            if (p.active === false) return false; // skip archived
-            const name = String(p.name || "").toLowerCase();
-            return keywords.some((k) => {
-                const kw = k.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                return new RegExp(`(^|[^a-z])${kw}`).test(name);
-            });
-        });
+    _removeOrderLine(order, line) {
+        try {
+            if (typeof order.removeOrderline === "function") order.removeOrderline(line);
+            else if (typeof line.delete === "function") line.delete();
+        } catch (e) {
+            console.warn("[laundry_pos] could not remove line:", e);
+        }
     },
 
     /**
-     * Add one configured line for a product.
-     *
-     * Turnaround Time is a `create_variant="always"` attribute, so Express and
-     * Regular are SEPARATE product.product variants, each with its own price.
-     * With configure=false the configurator never runs, so linking a turnaround
-     * PTAV does nothing — POS just keeps product_variant_ids[0] (Regular). We
-     * must therefore pick the matching variant and pass it as `product_id`.
-     *
-     * Soil Level / Item / Steam Size / Hanger / Type are `no_variant` attributes:
-     * they don't create variants, so they go on the line via attribute_value_ids
-     * link commands, and their price_extra must be summed manually (configure=false
-     * skips the configurator's own price_extra summing).
+     * Add one order line for a modal cart entry, identically to how POS adds a
+     * configured product: resolve the create_variant="always" product.product
+     * from the chosen PTAVs (its price already includes the variant adjustment),
+     * link ALL chosen PTAVs, and use the configurator's price_extra as-is (it
+     * only covers the no_variant attributes). The cashier already configured the
+     * attributes via the real POS ProductConfiguratorPopup in the modal.
      */
-    async _addServiceProduct(product, svc, svcInstructions, turnaround) {
+    async _addCartEntryToOrder(entry) {
+        const product = this.pos.models["product.template"]?.get(entry.productTmplId);
+        if (!product) return null;
+        const ptavModel = this.pos.models["product.template.attribute.value"];
+        const selectedIds = entry.attributeValueIds || [];
+        const links = selectedIds
+            .map((id) => ptavModel?.get(id))
+            .filter(Boolean)
+            .map((rec) => ["link", rec]);
+
+        // Resolve the variant whose variant-defining values are all selected.
         const variants = product.product_variant_ids || [];
-        const wantExpress = turnaround === "express";
-        const soil = String(svcInstructions.soil || "").toLowerCase();
-
-        // PTAV ids that actually define variants (the create_variant attribute).
-        const variantValueIds = new Set();
-        for (const v of variants) {
-            for (const pv of v.product_template_variant_value_ids || []) {
-                variantValueIds.add(pv.id);
-            }
-        }
-
-        // 1) Pick the variant matching the requested turnaround (Express/Regular).
-        const variant =
-            this._pickTurnaroundVariant(variants, wantExpress, soil) || variants[0] || null;
-
-        // 2) Resolve no_variant attribute lines from the instruction selections.
-        const links = [];
-        let priceExtra = 0;
-        const debug = [];
-        for (const line of product.attribute_line_ids || []) {
-            const vals = line.product_template_value_ids || [];
-            if (!vals.length) continue;
-            // Skip the variant-defining attribute — it's handled by product_id.
-            if (vals.some((v) => variantValueIds.has(v.id))) continue;
-
-            const attrName = line.attribute_id?.name || line.display_name || "";
-            const lowerAttr = attrName.toLowerCase();
-            let chosen = null;
-
-            if (lowerAttr.includes("turnaround")) {
-                // No-variant turnaround (Press/DWC/Shoe): Regular / Express values
-                // with their own price_extra. (WDF's turnaround is a real variant
-                // and was already skipped above via variantValueIds.)
-                chosen = vals.find(
-                    (v) => String(v.name || "").toLowerCase().includes("express") === wantExpress
-                );
-            } else {
-                const field = SERVICE_INSTRUCTIONS[svc]?.find(
-                    (f) => f.attr && lowerAttr.includes(f.attr.toLowerCase())
-                );
-                const selected = field ? svcInstructions[field.key] : null;
-                if (selected) {
-                    chosen = vals.find(
-                        (v) => String(v.name || "").toLowerCase() === String(selected).toLowerCase()
-                    );
-                }
-            }
-
-            if (!chosen) continue; // leave unset rather than forcing a wrong default
-            links.push(["link", chosen]);
-            priceExtra += chosen.price_extra || 0;
-            debug.push(`${attrName}=${chosen.name}`);
-        }
-
-        console.info(
-            "[laundry_pos] add", product.name,
-            "→ variant:", variant?.name, "@", variant?.lst_price,
-            "| extras:", debug.join(", ") || "(none)", "| price_extra:", priceExtra
-        );
+        let variant = variants.find((v) => {
+            const vv = (v.product_template_variant_value_ids || []).map((pv) => pv.id);
+            return vv.length && vv.every((id) => selectedIds.includes(id));
+        });
+        variant = variant || variants[0] || null;
 
         const vals = {
             product_tmpl_id: product,
             attribute_value_ids: links,
-            price_extra: priceExtra,
+            price_extra: entry.priceExtra || 0,
         };
-        if (variant) vals.product_id = variant; // override the default Regular variant
-        await this.pos.addLineToCurrentOrder(vals, {}, false);
-    },
-
-    /**
-     * Choose the product.product variant matching the requested turnaround.
-     * Express/Regular is read from the variant's value names; when those names
-     * also embed a soil level, prefer the one matching the chosen soil.
-     */
-    _pickTurnaroundVariant(variants, wantExpress, soil) {
-        let best = null;
-        let bestScore = -1;
-        for (const v of variants) {
-            const names = (v.product_template_variant_value_ids || [])
-                .map((pv) => String(pv.name || "").toLowerCase());
-            const turn = names.find((n) => n.includes("express") || n.includes("regular"));
-            if (turn === undefined) continue;                       // no turnaround dimension
-            if (turn.includes("express") !== wantExpress) continue; // wrong turnaround
-            let score = 1;
-            const embedsSoil =
-                turn.includes("light") || turn.includes("medium") || turn.includes("heavy");
-            if (soil && embedsSoil) {
-                score += turn.includes(soil) ? 1 : -1;
-            }
-            if (score > bestScore) {
-                bestScore = score;
-                best = v;
-            }
-        }
-        return best;
+        if (variant) vals.product_id = variant;
+        return await this.pos.addLineToCurrentOrder(vals, {}, false);
     },
 
     // Flash the banner instead of adding the product when setup is skipped
