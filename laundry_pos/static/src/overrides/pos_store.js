@@ -4,7 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
-import { lineNeedsConfig } from "@laundry_pos/utils/laundry_products";
+import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 patch(PosStore.prototype, {
     /**
@@ -44,6 +44,19 @@ patch(PosStore.prototype, {
     removeOrder(order, removeFromServer = true) {
         lsDelete(order?.uuid);
         return super.removeOrder(order, removeFromServer);
+    },
+
+    /**
+     * Laundry products must never merge into an existing line — each pill press
+     * (and each configured line) is a distinct item, even when two lines are
+     * identical. Forcing merge=false here keeps automatic pricing intact (unlike
+     * the price_unit trick, which would pin a manual price).
+     */
+    tryMergeOrderline(order, line, merge, selectedOrderline) {
+        if (laundryCodeForProduct(line?.product_id?.product_tmpl_id)) {
+            merge = false;
+        }
+        return super.tryMergeOrderline(order, line, merge, selectedOrderline);
     },
 
     /**
