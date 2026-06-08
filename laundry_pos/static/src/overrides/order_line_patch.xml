@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <!-- Show each selected attribute on its own line with a header
-         (e.g. "Turnaround: Express") instead of the default inline value list. -->
     <t t-inherit="point_of_sale.Orderline" t-inherit-mode="extension">
-        <xpath expr="//small[hasclass('attribute-line')]" position="replace">
-            <t t-if="vals.laundryAttributes and vals.laundryAttributes.length">
+        <!-- Product name only — drop the inline (Variant)/attribute string; we
+             show attributes one per line (with a header) below the rate. -->
+        <xpath expr="//div[hasclass('product-name')]/span[hasclass('text-wrap')]" position="replace">
+            <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
+        </xpath>
+
+        <!-- Attributes one per line with a header (e.g. "Turnaround: Express"),
+             below the rate. On the receipt a dashed line separates them (CSS). -->
+        <xpath expr="//ul[hasclass('info-list')]" position="after">
+            <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
+                 class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
-                     class="attribute-line" style="text-align:left;">
+                     class="attribute-line">
                     <t t-esc="a.name"/>: <t t-esc="a.value"/>
                 </div>
-            </t>
-            <small t-elif="vals.attributeString" t-out="vals.attributeString"
-                   class="attribute-line fst-italic"/>
+            </div>
         </xpath>
     </t>
 </templates>

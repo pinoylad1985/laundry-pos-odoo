@@ -1,14 +1,36 @@
-// Laundry receipt tweaks: 16px base font, and left-align the whole receipt
-// header (name / phone / address / tags / laundry details) instead of centered.
+// Laundry receipt styling.
 .pos-receipt {
-    font-size: 16px;
+    font-size: 14px;
     text-align: left;
 }
 
-// The core print stylesheet pins 14px with !important; match its specificity
-// (and load later) to keep 16px on the printed ticket too.
+// The core print stylesheet pins 14px; match it so the printed ticket agrees.
 @media print {
     .render-container .pos-receipt {
-        font-size: 16px !important;
+        font-size: 14px !important;
     }
+}
+
+// Make the reduced-size receipt bits a uniform 14px too (rate, small text).
+.pos-receipt .info-list,
+.pos-receipt small {
+    font-size: 14px !important;
+}
+
+// Product main line: bold name + amount, with qty & amount aligned to the top.
+.pos-receipt .product-name,
+.pos-receipt .product-price {
+    font-weight: bold;
+}
+.pos-receipt .line-details,
+.pos-receipt .product-name {
+    align-items: flex-start !important;
+}
+
+// Per-line attributes: a dashed separator above them, normal weight.
+.pos-receipt .laundry-attrs {
+    border-top: 1px dashed currentColor;
+    margin-top: 2px;
+    padding-top: 2px;
+    font-weight: normal;
 }
