@@ -4,7 +4,7 @@
 
         <!-- Customer name: larger + bold -->
         <xpath expr="//span[@t-esc='order.partner_id.name']" position="attributes">
-            <attribute name="style">font-size: 1.5em; font-weight: bold;</attribute>
+            <attribute name="style">font-size: 1.3em; font-weight: bold;</attribute>
         </xpath>
 
         <!-- Phone: below the name, above the address -->
