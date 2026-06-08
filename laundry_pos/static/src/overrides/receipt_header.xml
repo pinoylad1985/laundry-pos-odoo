@@ -19,6 +19,16 @@
             <div t-if="order.partner_id.pos_tag_names">
                 <span t-esc="order.partner_id.pos_tag_names"/>
             </div>
+            <!-- Laundry order details: one blank line after the tags, a single
+                 left-aligned bold column, and one blank line above the products. -->
+            <t t-if="laundryDetails.length">
+                <div>&#160;</div>
+                <div t-foreach="laundryDetails" t-as="d" t-key="d_index"
+                     style="text-align:left;font-weight:bold;">
+                    <t t-esc="d[0]"/>: <t t-esc="d[1]"/>
+                </div>
+                <div>&#160;</div>
+            </t>
         </xpath>
 
     </t>
