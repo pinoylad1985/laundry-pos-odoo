@@ -4,24 +4,20 @@ import { patch } from "@web/core/utils/patch";
 import { OrderSummary } from "@point_of_sale/app/screens/product_screen/order_summary/order_summary";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
-import { laundryCodeForProduct, lineNeedsConfig } from "@laundry_pos/utils/laundry_products";
+import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 patch(OrderSummary.prototype, {
     /**
-     * Tapping a laundry line opens the POS configurator to pick / change its
-     * variants & attributes:
-     *   - an UNCONFIGURED laundry line → configurator on the first tap.
-     *   - a CONFIGURED laundry line → normal select on first tap (so numpad /
-     *     delete still work), configurator again on re-tap ("re-select to change").
+     * Tapping a laundry line ALWAYS opens the POS configurator, so the cashier
+     * can pick options the first time and change the variant/attributes anytime
+     * afterwards.
      *
      * We open a FRESH configurator (productTemplate only) and apply its result,
      * rather than Odoo's onOrderlineLongPress (edit-an-existing-line) — the latter
      * assumes a fully-configured line and crashes on our unconfigured ones.
      */
     clickLine(ev, orderline) {
-        const productTmpl = orderline?.product_id?.product_tmpl_id;
-        const isLaundry = !!laundryCodeForProduct(productTmpl);
-        if (isLaundry && (lineNeedsConfig(orderline) || orderline.isSelected())) {
+        if (laundryCodeForProduct(orderline?.product_id?.product_tmpl_id)) {
             this._laundryConfigureLine(orderline);
             return;
         }
@@ -35,7 +31,11 @@ patch(OrderSummary.prototype, {
         const payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
             productTemplate,
         });
-        if (!payload) return; // cancelled — leave the line unchanged
+        if (!payload) {
+            // Cancelled — select the line so it can still be adjusted/deleted.
+            this.pos.selectOrderLine(this.currentOrder, orderline);
+            return;
+        }
 
         const ptavModel = this.pos.models["product.template.attribute.value"];
         const selectedIds = payload.attribute_value_ids || [];

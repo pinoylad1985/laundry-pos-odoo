@@ -5,6 +5,8 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
+import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { LAUNDRY_MENU } from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
 const SERVICE_LABELS = {
@@ -100,6 +102,61 @@ patch(ProductScreen.prototype, {
 
     _getLaundryTurnaroundType() {
         return this.laundryState.turnaround || "";
+    },
+
+    // ── Banner detail getters ─────────────────────────────────────────────
+
+    _getLaundryCustomerTypeLabel() {
+        const t = this.pos.getOrder()?.laundry_customer_type;
+        if (t === "new") return "New";
+        if (t === "returning") return "Returning";
+        return "—";
+    },
+
+    // Distinct selected services, derived from the laundry lines on the order.
+    _getLaundryServices() {
+        const order = this.pos.getOrder();
+        const labelByCode = Object.fromEntries(LAUNDRY_MENU.map((m) => [m.code, m.label]));
+        const codes = [];
+        for (const l of order?.lines || []) {
+            const code = laundryCodeForProduct(l.product_id?.product_tmpl_id);
+            if (code && !codes.includes(code)) codes.push(code);
+        }
+        return codes.map((c) => labelByCode[c] || c).join(", ");
+    },
+
+    // Turnaround as plain text (Express / Regular).
+    _getLaundryTAT() {
+        const t = this.laundryState.turnaround;
+        if (t === "express") return "Express";
+        if (t === "regular") return "Regular";
+        return "—";
+    },
+
+    _getLaundrySchedule() {
+        return this.pos.getOrder()?.laundry_schedule || {};
+    },
+
+    _fmtDateTime(date, hour) {
+        if (!date) return "";
+        return hour ? `${date} ${hour}` : date;
+    },
+
+    _getLaundryPickup() {
+        const s = this._getLaundrySchedule();
+        return this._fmtDateTime(s.pickupDate, s.pickupHour);
+    },
+
+    // Drop-off uses a Claim date; the other service types use a Delivery date.
+    _getLaundryDeliveryLabel() {
+        return this.pos.getOrder()?.laundry_service_type === "dropoff" ? "Claim" : "Delivery";
+    },
+
+    _getLaundryDelivery() {
+        const s = this._getLaundrySchedule();
+        if (s.deliveryDate) return this._fmtDateTime(s.deliveryDate, s.deliveryHour);
+        if (s.claimDate) return this._fmtDateTime(s.claimDate, s.claimHour);
+        return "";
     },
 
     /**
