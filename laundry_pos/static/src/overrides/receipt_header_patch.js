@@ -2,7 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { ReceiptHeader } from "@point_of_sale/app/screens/receipt_screen/receipt/receipt_header/receipt_header";
-import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { laundryCodeForProduct, fmtDateTime12 } from "@laundry_pos/utils/laundry_products";
 import { LAUNDRY_MENU } from "@laundry_pos/utils/laundry_instructions";
 import { lsLoad } from "@laundry_pos/utils/laundry_storage";
 
@@ -14,18 +14,11 @@ const SERVICE_LABELS = {
     self_service: "Self-service",
 };
 
-function fmt(date, hour) {
-    if (!date) return "";
-    return hour ? `${date} ${hour}` : date;
-}
-
 patch(ReceiptHeader.prototype, {
-    // Laundry order details for the receipt, as [label, value] rows.
-    get laundryDetails() {
+    // Resolve laundry meta from the order (JS fields) or localStorage (reprints).
+    _laundryData() {
         const order = this.props.order;
-        if (!order) return [];
-
-        // laundry_* are JS-only fields; fall back to localStorage for reprints.
+        if (!order) return null;
         let svcType = order.laundry_service_type;
         let custType = order.laundry_customer_type;
         let turnaround = order.laundry_turnaround;
@@ -39,33 +32,64 @@ patch(ReceiptHeader.prototype, {
                 schedule = stored.schedule || {};
             }
         }
-        if (!svcType) return [];
+        if (!svcType) return null;
+        return { order, svcType, custType, turnaround, schedule };
+    },
 
-        const rows = [];
-        rows.push(["Customer Type",
-            custType === "new" ? "New" : custType === "returning" ? "Returning" : "—"]);
+    get laundryActive() {
+        return this._laundryData() !== null;
+    },
 
+    get laundryCustomerType() {
+        const d = this._laundryData();
+        if (!d) return "";
+        return d.custType === "new" ? "New" : d.custType === "returning" ? "Returning" : "—";
+    },
+
+    // Distinct selected services (array), derived from the laundry lines.
+    get laundryServices() {
+        const d = this._laundryData();
+        if (!d) return [];
         const labelByCode = Object.fromEntries(LAUNDRY_MENU.map((m) => [m.code, m.label]));
         const codes = [];
-        for (const l of order.lines || []) {
+        for (const l of d.order.lines || []) {
             const c = laundryCodeForProduct(l.product_id?.product_tmpl_id);
             if (c && !codes.includes(c)) codes.push(c);
         }
-        rows.push(["Services", codes.map((c) => labelByCode[c] || c).join(", ")]);
+        return codes.map((c) => labelByCode[c] || c);
+    },
 
-        rows.push(["TAT",
-            turnaround === "express" ? "Express" : turnaround === "regular" ? "Regular" : "—"]);
-        rows.push(["Service Type", SERVICE_LABELS[svcType] || ""]);
+    get laundryTAT() {
+        const d = this._laundryData();
+        if (!d) return "";
+        return d.turnaround === "express" ? "Express"
+             : d.turnaround === "regular" ? "Regular" : "—";
+    },
 
-        if (schedule.pickupDate) {
-            rows.push(["Pickup", fmt(schedule.pickupDate, schedule.pickupHour)]);
+    get laundryServiceType() {
+        const d = this._laundryData();
+        return d ? (SERVICE_LABELS[d.svcType] || "") : "";
+    },
+
+    get laundryPickup() {
+        const d = this._laundryData();
+        return d ? fmtDateTime12(d.schedule.pickupDate, d.schedule.pickupHour) : "";
+    },
+
+    get laundryDeliveryLabel() {
+        const d = this._laundryData();
+        return d && d.svcType === "dropoff" ? "Claim" : "Delivery";
+    },
+
+    get laundryDelivery() {
+        const d = this._laundryData();
+        if (!d) return "";
+        if (d.schedule.deliveryDate) {
+            return fmtDateTime12(d.schedule.deliveryDate, d.schedule.deliveryHour);
         }
-        if (schedule.deliveryDate) {
-            rows.push([svcType === "dropoff" ? "Claim" : "Delivery",
-                fmt(schedule.deliveryDate, schedule.deliveryHour)]);
-        } else if (schedule.claimDate) {
-            rows.push(["Claim", fmt(schedule.claimDate, schedule.claimHour)]);
+        if (d.schedule.claimDate) {
+            return fmtDateTime12(d.schedule.claimDate, d.schedule.claimHour);
         }
-        return rows;
+        return "";
     },
 });

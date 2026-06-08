@@ -5,7 +5,7 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
-import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { laundryCodeForProduct, fmtDateTime12 } from "@laundry_pos/utils/laundry_products";
 import { LAUNDRY_MENU } from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
@@ -138,8 +138,7 @@ patch(ProductScreen.prototype, {
     },
 
     _fmtDateTime(date, hour) {
-        if (!date) return "";
-        return hour ? `${date} ${hour}` : date;
+        return fmtDateTime12(date, hour);
     },
 
     _getLaundryPickup() {

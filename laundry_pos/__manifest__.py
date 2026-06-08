@@ -10,6 +10,7 @@
     ],
     'assets': {
         'point_of_sale._assets_pos': [
+            'laundry_pos/static/src/**/*.scss',
             'laundry_pos/static/src/**/*.js',
             'laundry_pos/static/src/**/*.xml',
         ],

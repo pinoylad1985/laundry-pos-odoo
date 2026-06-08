@@ -33,6 +33,24 @@ export function laundryCodeForProduct(productTmpl) {
     return item ? item.code : null;
 }
 
+// Format a stored "HH:00" 24h value as 12-hour with AM/PM (e.g. "9:00 AM").
+export function fmtTime12(hour) {
+    if (!hour) return "";
+    const [h, m] = String(hour).split(":");
+    const hh = parseInt(h, 10);
+    if (isNaN(hh)) return hour;
+    const ampm = hh < 12 ? "AM" : "PM";
+    const disp = hh % 12 === 0 ? 12 : hh % 12;
+    return `${disp}:${m || "00"} ${ampm}`;
+}
+
+// "YYYY-MM-DD" + "HH:00" → "YYYY-MM-DD 9:00 AM"
+export function fmtDateTime12(date, hour) {
+    if (!date) return "";
+    const t = fmtTime12(hour);
+    return t ? `${date} ${t}` : date;
+}
+
 // A laundry line whose product still has options the cashier hasn't chosen.
 export function lineNeedsConfig(line) {
     const tmpl = line?.product_id?.product_tmpl_id;

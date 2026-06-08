@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Show each selected attribute on its own line with a header
+         (e.g. "Turnaround: Express") instead of the default inline value list. -->
+    <t t-inherit="point_of_sale.Orderline" t-inherit-mode="extension">
+        <xpath expr="//small[hasclass('attribute-line')]" position="replace">
+            <t t-if="vals.laundryAttributes and vals.laundryAttributes.length">
+                <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
+                     class="attribute-line" style="text-align:left;">
+                    <t t-esc="a.name"/>: <t t-esc="a.value"/>
+                </div>
+            </t>
+            <small t-elif="vals.attributeString" t-out="vals.attributeString"
+                   class="attribute-line fst-italic"/>
+        </xpath>
+    </t>
+</templates>

@@ -20,12 +20,20 @@
                 <span t-esc="order.partner_id.pos_tag_names"/>
             </div>
             <!-- Laundry order details: one blank line after the tags, a single
-                 left-aligned bold column, and one blank line above the products. -->
-            <t t-if="laundryDetails.length">
+                 left-aligned bold column, and one blank line above the products.
+                 Services are listed one per line (first next to the header). -->
+            <t t-if="laundryActive">
                 <div>&#160;</div>
-                <div t-foreach="laundryDetails" t-as="d" t-key="d_index"
-                     style="text-align:left;font-weight:bold;">
-                    <t t-esc="d[0]"/>: <t t-esc="d[1]"/>
+                <div style="text-align:left;font-weight:bold;">
+                    <div>Customer Type: <t t-esc="laundryCustomerType"/></div>
+                    <div t-if="laundryServices.length">Services: <t t-esc="laundryServices[0]"/></div>
+                    <div t-foreach="laundryServices.slice(1)" t-as="s" t-key="s_index">
+                        <t t-esc="s"/>
+                    </div>
+                    <div>TAT: <t t-esc="laundryTAT"/></div>
+                    <div>Service Type: <t t-esc="laundryServiceType"/></div>
+                    <div t-if="laundryPickup">Pickup: <t t-esc="laundryPickup"/></div>
+                    <div t-if="laundryDelivery"><t t-esc="laundryDeliveryLabel"/>: <t t-esc="laundryDelivery"/></div>
                 </div>
                 <div>&#160;</div>
             </t>
