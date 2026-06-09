@@ -47,6 +47,7 @@ patch(OrderSummary.prototype, {
         );
         const vals = buildConfiguredLineVals(this.pos, productTemplate, selectedIds);
         if (!vals.product_id) vals.product_id = orderline.product_id;
+        vals.qty = orderline.qty; // preserve quantity (e.g. merged Press lines)
 
         // Swap the tapped line for the freshly configured one (the no-merge patch
         // keeps it as its own separate line).

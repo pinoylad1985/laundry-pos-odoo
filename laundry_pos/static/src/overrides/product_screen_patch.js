@@ -182,6 +182,7 @@ patch(ProductScreen.prototype, {
             if (unchanged) continue;
             const vals = buildConfiguredLineVals(this.pos, tmpl, updated);
             if (!vals.product_id) vals.product_id = line.product_id;
+            vals.qty = line.qty; // preserve quantity
             if (typeof order.removeOrderline === "function") order.removeOrderline(line);
             else if (typeof line.delete === "function") line.delete();
             await this.pos.addLineToCurrentOrder(vals, {}, false);

@@ -27,10 +27,15 @@
     align-items: flex-start !important;
 }
 
-// Per-line attributes: normal weight (the separator now sits between products).
+// Per-line attributes: normal weight, same 14px as the product line (the
+// separator now sits between products).
 .pos-receipt .laundry-attrs {
     margin-top: 2px;
     font-weight: normal;
+}
+.pos-receipt .laundry-attrs,
+.pos-receipt .laundry-attrs .attribute-line {
+    font-size: 14px;
 }
 
 // Dashed separator at the TOP of each product line except the first, running

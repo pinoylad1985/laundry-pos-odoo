@@ -6,9 +6,12 @@
             <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
         </xpath>
 
-        <!-- Attributes one per line, below the rate: an empty checkbox (receipt
-             only) + a BOLD label + the value. -->
+        <!-- Below the rate: WDF "Sorting count" first, then the attributes (empty
+             checkbox + bold label + value), then WDF "Folding count" last. -->
         <xpath expr="//ul[hasclass('info-list')]" position="after">
+            <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">
+                <div class="attribute-line">&#9744; <b>Sorting count:</b> _____</div>
+            </div>
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
@@ -16,9 +19,7 @@
                     <t t-if="vals.isReceipt">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
                 </div>
             </div>
-            <!-- Wash-Dry-Fold only: write-in counts on the printed receipt. -->
             <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Sorting count:</b> _____</div>
                 <div class="attribute-line">&#9744; <b>Folding count:</b> _____</div>
             </div>
         </xpath>

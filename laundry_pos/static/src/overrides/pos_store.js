@@ -53,7 +53,9 @@ patch(PosStore.prototype, {
      * the price_unit trick, which would pin a manual price).
      */
     tryMergeOrderline(order, line, merge, selectedOrderline) {
-        if (laundryCodeForProduct(line?.product_id?.product_tmpl_id)) {
+        const code = laundryCodeForProduct(line?.product_id?.product_tmpl_id);
+        // WDF / DWC / Shoe stay as distinct qty-1 lines; Press may merge (qty > 1).
+        if (code && code !== "press") {
             merge = false;
         }
         return super.tryMergeOrderline(order, line, merge, selectedOrderline);
