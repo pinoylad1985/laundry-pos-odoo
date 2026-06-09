@@ -48,12 +48,6 @@ patch(PosStore.prototype, {
     },
 
     /**
-     * Laundry products must never merge into an existing line — each pill press
-     * (and each configured line) is a distinct item, even when two lines are
-     * identical. Forcing merge=false here keeps automatic pricing intact (unlike
-     * the price_unit trick, which would pin a manual price).
-     */
-    /**
      * Print one job per laundry copy (TRANSACTION/SHOP/CUSTOMER) so the thermal
      * printer cuts between each. Non-laundry orders print once, normally.
      */
@@ -75,9 +69,10 @@ patch(PosStore.prototype, {
         return result;
     },
 
+    // WDF (per-KG), DWC and Shoe stay as distinct lines; only Press may merge
+    // into one line with qty > 1.
     tryMergeOrderline(order, line, merge, selectedOrderline) {
         const code = laundryCodeForProduct(line?.product_id?.product_tmpl_id);
-        // WDF / DWC / Shoe stay as distinct qty-1 lines; Press may merge (qty > 1).
         if (code && code !== "press") {
             merge = false;
         }
@@ -103,6 +98,26 @@ patch(PosStore.prototype, {
                 body: `Please choose options for these products before payment: ${names}`,
             });
             return;
+        }
+
+        // Wash-Dry-Fold is charged per KG: at least 6KG for a single WDF line,
+        // or 4KG on each line when there is more than one WDF line.
+        const wdfLines = (order?.lines || []).filter(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
+        );
+        if (wdfLines.length) {
+            const minKg = wdfLines.length === 1 ? 6 : 4;
+            if (wdfLines.some((l) => (l.qty || 0) < minKg)) {
+                const dialog = this.dialog || this.env?.services?.dialog;
+                dialog?.add(AlertDialog, {
+                    title: "Minimum Wash-Dry-Fold weight",
+                    body:
+                        wdfLines.length === 1
+                            ? "Wash-Dry-Fold requires at least 6KG."
+                            : `Each Wash-Dry-Fold line requires at least 4KG (you have ${wdfLines.length} lines).`,
+                });
+                return;
+            }
         }
         return super.pay(...arguments);
     },

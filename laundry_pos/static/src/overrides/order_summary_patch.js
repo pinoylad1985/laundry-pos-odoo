@@ -18,11 +18,17 @@ patch(OrderSummary.prototype, {
      * onOrderlineLongPress assumes a fully-configured line and crashes on ours.
      */
     clickLine(ev, orderline) {
-        if (laundryCodeForProduct(orderline?.product_id?.product_tmpl_id)) {
-            this._laundryConfigureLine(orderline);
-            return;
+        const code = laundryCodeForProduct(orderline?.product_id?.product_tmpl_id);
+        if (!code) {
+            return super.clickLine(ev, orderline);
         }
-        return super.clickLine(ev, orderline);
+        // Wash-Dry-Fold is charged per KG: first tap selects it (so the numpad
+        // can set the weight), re-tap opens the configurator. The other services
+        // open the configurator straight away.
+        if (code === "wdf" && !orderline.isSelected()) {
+            return super.clickLine(ev, orderline);
+        }
+        this._laundryConfigureLine(orderline);
     },
 
     async _laundryConfigureLine(orderline) {
