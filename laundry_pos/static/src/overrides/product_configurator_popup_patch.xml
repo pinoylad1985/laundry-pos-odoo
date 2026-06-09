@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.ProductConfiguratorPopup" t-inherit-mode="extension">
+        <!-- Turnaround is locked to the order's schedule; tell the cashier how
+             to change it instead of letting them pick it here. -->
+        <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="before">
+            <div t-if="hasLaundryTurnaround" class="alert alert-info py-2">
+                Turnaround is set by the order's schedule. Adjust the pickup and/or
+                claim/delivery schedule in the New Order details to update the TAT.
+            </div>
+        </xpath>
+    </t>
+</templates>

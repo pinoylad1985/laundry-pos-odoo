@@ -13,7 +13,7 @@
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
-                     class="attribute-line">
+                     class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' }">
                     <t t-esc="a.name"/>: <t t-esc="a.value"/>
                 </div>
             </div>

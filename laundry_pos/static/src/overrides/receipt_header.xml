@@ -24,7 +24,7 @@
                  Services are listed one per line (first next to the header). -->
             <t t-if="laundryActive">
                 <div>&#160;</div>
-                <div style="text-align:left;font-weight:bold;">
+                <div class="laundry-details" style="font-weight:bold;">
                     <div>Customer Type: <t t-esc="laundryCustomerType"/></div>
                     <div t-if="laundryServices.length">Services: <t t-esc="laundryServices[0]"/></div>
                     <div t-foreach="laundryServices.slice(1)" t-as="s" t-key="s_index">

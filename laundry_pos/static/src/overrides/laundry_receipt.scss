@@ -34,3 +34,10 @@
     padding-top: 2px;
     font-weight: normal;
 }
+
+// Laundry order details flush to the far left.
+.pos-receipt .laundry-details {
+    text-align: left;
+    margin-left: 0;
+    padding-left: 0;
+}

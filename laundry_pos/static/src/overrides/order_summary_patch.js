@@ -38,25 +38,40 @@ patch(OrderSummary.prototype, {
         }
 
         const ptavModel = this.pos.models["product.template.attribute.value"];
-        const selectedIds = payload.attribute_value_ids || [];
-        const links = selectedIds
-            .map((id) => ptavModel?.get(id))
-            .filter(Boolean)
-            .map((rec) => ["link", rec]);
+        // Turnaround is driven by the order's TAT, not picked in the configurator.
+        const selectedIds = this._withTatTurnaround(productTemplate, payload.attribute_value_ids || []);
+
+        const variants = productTemplate.product_variant_ids || [];
+        const variantValueIds = new Set();
+        for (const v of variants) {
+            for (const pv of v.product_template_variant_value_ids || []) {
+                variantValueIds.add(pv.id);
+            }
+        }
 
         // Resolve the create_variant="always" product.product from the choice;
         // its price already includes the variant adjustment.
-        const variants = productTemplate.product_variant_ids || [];
         let variant = variants.find((v) => {
             const vv = (v.product_template_variant_value_ids || []).map((pv) => pv.id);
             return vv.length && vv.every((id) => selectedIds.includes(id));
         });
         variant = variant || orderline.product_id || variants[0] || null;
 
+        // Link all chosen values; sum price_extra only for no_variant ones (the
+        // variant price already covers the variant-defining values).
+        const links = [];
+        let priceExtra = 0;
+        for (const id of selectedIds) {
+            const rec = ptavModel?.get(id);
+            if (!rec) continue;
+            links.push(["link", rec]);
+            if (!variantValueIds.has(id)) priceExtra += rec.price_extra || 0;
+        }
+
         const vals = {
             product_tmpl_id: productTemplate,
             attribute_value_ids: links,
-            price_extra: payload.price_extra || 0,
+            price_extra: priceExtra,
         };
         if (variant) vals.product_id = variant;
 
@@ -69,5 +84,25 @@ patch(OrderSummary.prototype, {
             orderline.delete();
         }
         await this.pos.addLineToCurrentOrder(vals, {}, false);
+    },
+
+    // Replace any picked turnaround value with the one matching the order's TAT
+    // (express/regular), so the schedule — not the cashier — decides turnaround.
+    _withTatTurnaround(productTemplate, selectedIds) {
+        const tat = this.pos.getOrder()?.laundry_turnaround; // "express" | "regular"
+        if (!tat) return [...selectedIds]; // no schedule/TAT set — leave as-is
+        let ids = [...selectedIds];
+        for (const line of productTemplate.attribute_line_ids || []) {
+            if (!String(line.attribute_id?.name || "").startsWith("Turnaround")) continue;
+            const vals = line.product_template_value_ids || [];
+            const valIds = vals.map((v) => v.id);
+            ids = ids.filter((id) => !valIds.includes(id)); // drop any picked turnaround
+            const match = vals.find(
+                (v) => String(v.name || "").toLowerCase().includes("express") === (tat === "express")
+            );
+            if (match) ids.push(match.id);
+            break;
+        }
+        return ids;
     },
 });
