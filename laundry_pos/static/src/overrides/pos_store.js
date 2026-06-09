@@ -69,14 +69,10 @@ patch(PosStore.prototype, {
         return result;
     },
 
-    // WDF (per-KG), DWC and Shoe stay as distinct lines; only Press may merge
-    // into one line with qty > 1.
+    // Every tap creates a NEW line — products never merge into an existing line
+    // (consistent for all products). Quantity is changed via the numpad instead.
     tryMergeOrderline(order, line, merge, selectedOrderline) {
-        const code = laundryCodeForProduct(line?.product_id?.product_tmpl_id);
-        if (code && code !== "press") {
-            merge = false;
-        }
-        return super.tryMergeOrderline(order, line, merge, selectedOrderline);
+        return super.tryMergeOrderline(order, line, false, selectedOrderline);
     },
 
     /**

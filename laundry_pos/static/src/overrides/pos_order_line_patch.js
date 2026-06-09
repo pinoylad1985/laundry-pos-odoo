@@ -12,7 +12,9 @@ patch(PosOrderline.prototype, {
         const code = laundryCodeForProduct(this.product_id?.product_tmpl_id);
         if (code === "dwc" || code === "shoe") {
             const q = parseFloat(quantity);
-            if (!isNaN(q) && q > 1) {
+            // Locked at 1 — the numpad can't change it (0 stays allowed so the
+            // line can still be removed).
+            if (!isNaN(q) && q !== 0 && q !== 1) {
                 quantity = 1;
             }
         }
