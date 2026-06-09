@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.Orderline" t-inherit-mode="extension">
-        <!-- Product name only — drop the inline (Variant)/attribute string; we
-             show attributes one per line (with a header) below the rate. -->
+        <!-- Product name only — drop the inline (Variant)/attribute string. On the
+             receipt, prefix an empty checkbox for staff to tick off each item. -->
         <xpath expr="//div[hasclass('product-name')]/span[hasclass('text-wrap')]" position="replace">
-            <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
+            <span class="text-wrap d-inline"><t t-if="vals.isReceipt">&#9744; </t><t t-esc="vals.name"/></span>
         </xpath>
 
-        <!-- Attributes one per line with a header (e.g. "Turnaround: Express"),
-             below the rate. On the receipt a dashed line separates them (CSS). -->
+        <!-- Attributes one per line with a header (e.g. "Soil Level: LIGHT"),
+             below the rate; turnaround line is greyed (and hidden on the receipt). -->
         <xpath expr="//ul[hasclass('info-list')]" position="after">
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
@@ -16,6 +16,11 @@
                      class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' }">
                     <t t-esc="a.name"/>: <t t-esc="a.value"/>
                 </div>
+            </div>
+            <!-- Wash-Dry-Fold only: write-in counts on the printed receipt. -->
+            <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">
+                <div class="attribute-line">Sorting count: _____</div>
+                <div class="attribute-line">Folding count: _____</div>
             </div>
         </xpath>
     </t>

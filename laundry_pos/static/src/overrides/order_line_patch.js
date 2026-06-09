@@ -21,12 +21,12 @@ patch(Orderline.prototype, {
             // drop the per-product "Turnaround" line from the printed receipt.
             .filter((a) => !(vals.isReceipt && a.name === "Turnaround"));
 
-        if (
-            laundryCodeForProduct(line.product_id?.product_tmpl_id) &&
-            typeof vals.name === "string"
-        ) {
+        const code = laundryCodeForProduct(line.product_id?.product_tmpl_id);
+        if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
+        // Wash-Dry-Fold gets write-in Sorting/Folding count lines on the receipt.
+        vals.laundryWdf = code === "wdf";
         return vals;
     },
 

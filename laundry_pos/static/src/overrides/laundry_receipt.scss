@@ -27,12 +27,25 @@
     align-items: flex-start !important;
 }
 
-// Per-line attributes: a dashed separator above them, normal weight.
+// Per-line attributes: normal weight (the separator now sits between products).
 .pos-receipt .laundry-attrs {
-    border-top: 1px dashed currentColor;
     margin-top: 2px;
-    padding-top: 2px;
     font-weight: normal;
+}
+
+// Dashed separator at the TOP of each product line except the first, running
+// to the half-way point of the receipt. The orderline is position-relative, so
+// an absolute ::before keeps it out of the line's flex layout.
+.pos-receipt .orderline:not(:first-child) {
+    margin-top: 6px;
+}
+.pos-receipt .orderline:not(:first-child)::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 50%;
+    border-top: 1px dashed currentColor;
 }
 
 // Laundry order details flush to the far left.

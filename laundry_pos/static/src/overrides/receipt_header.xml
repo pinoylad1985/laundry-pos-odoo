@@ -27,16 +27,22 @@
         <xpath expr="//div[hasclass('flex-column') and hasclass('align-items-center')]" position="after">
             <t t-if="laundryActive">
                 <div>&#160;</div>
-                <div class="laundry-details" style="font-weight:bold;">
-                    <div>Customer Type: <t t-esc="laundryCustomerType"/></div>
-                    <div t-if="laundryServices.length">Services: <t t-esc="laundryServices[0]"/></div>
-                    <div t-foreach="laundryServices.slice(1)" t-as="s" t-key="s_index">
-                        <t t-esc="s"/>
+                <div class="laundry-details">
+                    <div><b>Customer Type:</b> <t t-esc="laundryCustomerType"/></div>
+                    <!-- Services: label + a column of services, so each lines up
+                         under the first one (indented after "Services:"). -->
+                    <div t-if="laundryServices.length" class="d-flex">
+                        <b style="white-space:nowrap;">Services:&#160;</b>
+                        <div>
+                            <div t-foreach="laundryServices" t-as="s" t-key="s_index">
+                                <t t-esc="s"/>
+                            </div>
+                        </div>
                     </div>
-                    <div>TAT: <t t-esc="laundryTAT"/></div>
-                    <div>Service Type: <t t-esc="laundryServiceType"/></div>
-                    <div t-if="laundryPickup">Pickup: <t t-esc="laundryPickup"/></div>
-                    <div t-if="laundryDelivery"><t t-esc="laundryDeliveryLabel"/>: <t t-esc="laundryDelivery"/></div>
+                    <div><b>TAT:</b> <t t-esc="laundryTAT"/></div>
+                    <div><b>Service Type:</b> <t t-esc="laundryServiceType"/></div>
+                    <div t-if="laundryPickup"><b>Pickup:</b> <t t-esc="laundryPickup"/></div>
+                    <div t-if="laundryDelivery"><b><t t-esc="laundryDeliveryLabel"/>:</b> <t t-esc="laundryDelivery"/></div>
                 </div>
                 <div>&#160;</div>
             </t>
