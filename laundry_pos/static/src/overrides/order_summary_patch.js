@@ -18,11 +18,13 @@ patch(OrderSummary.prototype, {
      * onOrderlineLongPress assumes a fully-configured line and crashes on ours.
      */
     clickLine(ev, orderline) {
-        if (laundryCodeForProduct(orderline?.product_id?.product_tmpl_id)) {
-            // First tap selects the line (so the numpad can set qty/weight);
-            // re-tap opens the configurator to choose options. (Numpad qty has
-            // no effect on Dry/Wet Clean & Shoe Clean — they're clamped to 1.)
-            if (orderline.isSelected()) {
+        const tmpl = orderline?.product_id?.product_tmpl_id;
+        if (laundryCodeForProduct(tmpl)) {
+            // Tapping a laundry line opens the configurator first (when the
+            // product has options). After confirming, the re-added line is
+            // selected, so the numpad can adjust its qty/weight — except Dry/Wet
+            // Clean and Shoe Clean, which stay clamped to 1.
+            if ((tmpl?.attribute_line_ids?.length || 0) > 0) {
                 this._laundryConfigureLine(orderline);
                 return;
             }
