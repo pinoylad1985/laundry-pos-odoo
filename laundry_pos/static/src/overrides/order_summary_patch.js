@@ -9,6 +9,7 @@ import {
     withTatTurnaround,
     buildConfiguredLineVals,
 } from "@laundry_pos/utils/laundry_products";
+import { setEditSelection } from "@laundry_pos/overrides/product_configurator_popup_patch";
 
 patch(OrderSummary.prototype, {
     /**
@@ -37,9 +38,16 @@ patch(OrderSummary.prototype, {
         const productTemplate = orderline.product_id?.product_tmpl_id;
         if (!productTemplate) return;
 
-        const payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
-            productTemplate,
-        });
+        // Pre-fill the configurator with the line's current selection.
+        setEditSelection((orderline.attribute_value_ids || []).map((v) => v.id));
+        let payload;
+        try {
+            payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
+                productTemplate,
+            });
+        } finally {
+            setEditSelection(null);
+        }
         if (!payload) {
             // Cancelled — select the line so it can still be adjusted/deleted.
             this.pos.selectOrderLine(this.currentOrder, orderline);
