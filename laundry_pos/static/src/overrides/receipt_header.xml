@@ -31,8 +31,8 @@
                     <div><b>Customer Type:</b> <t t-esc="laundryCustomerType"/></div>
                     <!-- Services: label + a column of services, so each lines up
                          under the first one (indented after "Services: "). -->
-                    <div t-if="laundryServices.length" class="d-flex align-items-start">
-                        <b style="white-space:nowrap;">Services:&#160;</b>
+                    <div t-if="laundryServices.length" class="d-flex align-items-start gap-1">
+                        <b style="white-space:nowrap;">Services:</b>
                         <div>
                             <div t-foreach="laundryServices" t-as="s" t-key="s_index">
                                 <t t-esc="s"/>
