@@ -5,6 +5,7 @@ import { PosStore } from "@point_of_sale/app/services/pos_store";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
 
 patch(PosStore.prototype, {
     /**
@@ -52,6 +53,28 @@ patch(PosStore.prototype, {
      * identical. Forcing merge=false here keeps automatic pricing intact (unlike
      * the price_unit trick, which would pin a manual price).
      */
+    /**
+     * Print one job per laundry copy (TRANSACTION/SHOP/CUSTOMER) so the thermal
+     * printer cuts between each. Non-laundry orders print once, normally.
+     */
+    async printReceipt(opts = {}) {
+        const order = opts.order || this.getOrder();
+        const copies = computeLaundryCopies(order);
+        if (!(copies.length && copies[0]?.label)) {
+            return super.printReceipt(opts); // not a laundry order — single receipt
+        }
+        let result;
+        for (const copy of copies) {
+            setPrintOnlyCopy(copy);
+            try {
+                result = await super.printReceipt({ ...opts, order });
+            } finally {
+                setPrintOnlyCopy(null);
+            }
+        }
+        return result;
+    },
+
     tryMergeOrderline(order, line, merge, selectedOrderline) {
         const code = laundryCodeForProduct(line?.product_id?.product_tmpl_id);
         // WDF / DWC / Shoe stay as distinct qty-1 lines; Press may merge (qty > 1).
