@@ -19,9 +19,12 @@
             <div t-if="order.partner_id.pos_tag_names">
                 <span t-esc="order.partner_id.pos_tag_names"/>
             </div>
-            <!-- Laundry order details: one blank line after the tags, a single
-                 left-aligned bold column, and one blank line above the products.
-                 Services are listed one per line (first next to the header). -->
+        </xpath>
+
+        <!-- Laundry order details: placed AFTER the centered header wrapper so they
+             render full-width and flush to the far left. One blank line above and
+             below; services listed one per line (first next to the header). -->
+        <xpath expr="//div[hasclass('flex-column') and hasclass('align-items-center')]" position="after">
             <t t-if="laundryActive">
                 <div>&#160;</div>
                 <div class="laundry-details" style="font-weight:bold;">

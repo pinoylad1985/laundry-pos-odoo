@@ -5,7 +5,12 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
-import { laundryCodeForProduct, fmtDateTime12 } from "@laundry_pos/utils/laundry_products";
+import {
+    laundryCodeForProduct,
+    fmtDateTime12,
+    withTatTurnaround,
+    buildConfiguredLineVals,
+} from "@laundry_pos/utils/laundry_products";
 import { LAUNDRY_MENU } from "@laundry_pos/utils/laundry_instructions";
 import { useState, useEffect, onMounted, onWillUnmount } from "@odoo/owl";
 
@@ -158,6 +163,31 @@ patch(ProductScreen.prototype, {
         return "";
     },
 
+    // Push the order's current TAT onto already-configured laundry lines so a
+    // schedule change re-syncs each product's turnaround (remove + re-add).
+    async _reapplyTatToLaundryLines(order) {
+        const tat = order?.laundry_turnaround;
+        if (!tat || !order?.lines) return;
+        for (const line of [...order.lines]) {
+            const tmpl = line.product_id?.product_tmpl_id;
+            if (!laundryCodeForProduct(tmpl)) continue;
+            const hasTurn = (line.attribute_value_ids || []).some(
+                (v) => String(v.attribute_id?.name || "").startsWith("Turnaround")
+            );
+            if (!hasTurn) continue; // not configured yet — TAT is applied on configure
+            const current = (line.attribute_value_ids || []).map((v) => v.id);
+            const updated = withTatTurnaround(tmpl, current, tat);
+            const unchanged =
+                updated.length === current.length && updated.every((id) => current.includes(id));
+            if (unchanged) continue;
+            const vals = buildConfiguredLineVals(this.pos, tmpl, updated);
+            if (!vals.product_id) vals.product_id = line.product_id;
+            if (typeof order.removeOrderline === "function") order.removeOrderline(line);
+            else if (typeof line.delete === "function") line.delete();
+            await this.pos.addLineToCurrentOrder(vals, {}, false);
+        }
+    },
+
     /**
      * @param {object} order
      * @param {boolean} isChange - when true, skipping keeps the existing setup intact
@@ -210,6 +240,10 @@ patch(ProductScreen.prototype, {
         order.laundry_customer_type = result.customerType;
         order.laundry_schedule      = result.schedule   || {};
         order.laundry_turnaround    = result.turnaround || null;
+
+        // The TAT may have changed (e.g. new schedule via Change) — push it onto
+        // the already-configured laundry lines so their turnaround stays in sync.
+        await this._reapplyTatToLaundryLines(order);
 
         // Products were already added to the order by the service pills; just
         // persist the meta so it survives reload and pre-populates the Change modal.

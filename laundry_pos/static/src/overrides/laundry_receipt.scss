@@ -38,6 +38,14 @@
 // Laundry order details flush to the far left.
 .pos-receipt .laundry-details {
     text-align: left;
+    width: 100%;
     margin-left: 0;
     padding-left: 0;
+}
+
+// Greyed-out / locked attribute in the product configurator (turnaround is
+// driven by the schedule TAT, so it can't be changed here).
+.laundry-locked-attr {
+    opacity: 0.55;
+    pointer-events: none;
 }

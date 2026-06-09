@@ -51,6 +51,58 @@ export function fmtDateTime12(date, hour) {
     return t ? `${date} ${t}` : date;
 }
 
+// Replace any turnaround value in `selectedIds` with the one matching `tat`
+// ("express"/"regular"). The schedule (TAT) — not the cashier — decides it.
+export function withTatTurnaround(productTemplate, selectedIds, tat) {
+    if (!tat) return [...selectedIds];
+    let ids = [...selectedIds];
+    for (const line of productTemplate.attribute_line_ids || []) {
+        if (!String(line.attribute_id?.name || "").startsWith("Turnaround")) continue;
+        const vals = line.product_template_value_ids || [];
+        const valIds = vals.map((v) => v.id);
+        ids = ids.filter((id) => !valIds.includes(id));
+        const match = vals.find(
+            (v) => String(v.name || "").toLowerCase().includes("express") === (tat === "express")
+        );
+        if (match) ids.push(match.id);
+        break;
+    }
+    return ids;
+}
+
+// Build addLineToCurrentOrder vals for a product configured with `selectedIds`:
+// resolve the create_variant="always" product.product, link all chosen values,
+// and sum price_extra for the no_variant ones only.
+export function buildConfiguredLineVals(pos, productTemplate, selectedIds) {
+    const ptavModel = pos.models["product.template.attribute.value"];
+    const variants = productTemplate.product_variant_ids || [];
+    const variantValueIds = new Set();
+    for (const v of variants) {
+        for (const pv of v.product_template_variant_value_ids || []) variantValueIds.add(pv.id);
+    }
+    let variant = variants.find((v) => {
+        const vv = (v.product_template_variant_value_ids || []).map((pv) => pv.id);
+        return vv.length && vv.every((id) => selectedIds.includes(id));
+    });
+    variant = variant || variants[0] || null;
+
+    const links = [];
+    let priceExtra = 0;
+    for (const id of selectedIds) {
+        const rec = ptavModel?.get(id);
+        if (!rec) continue;
+        links.push(["link", rec]);
+        if (!variantValueIds.has(id)) priceExtra += rec.price_extra || 0;
+    }
+    const vals = {
+        product_tmpl_id: productTemplate,
+        attribute_value_ids: links,
+        price_extra: priceExtra,
+    };
+    if (variant) vals.product_id = variant;
+    return vals;
+}
+
 // A laundry line whose product still has options the cashier hasn't chosen.
 export function lineNeedsConfig(line) {
     const tmpl = line?.product_id?.product_tmpl_id;
