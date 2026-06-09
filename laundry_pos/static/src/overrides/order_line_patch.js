@@ -25,8 +25,10 @@ patch(Orderline.prototype, {
         if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
-        // Wash-Dry-Fold gets write-in Sorting/Folding count lines on the receipt.
+        // WDF/Press get write-in count lines on the receipt (Sorting at the top;
+        // Folding for WDF / Press count for Press at the bottom).
         vals.laundryWdf = code === "wdf";
+        vals.laundryPress = code === "press";
         return vals;
     },
 
