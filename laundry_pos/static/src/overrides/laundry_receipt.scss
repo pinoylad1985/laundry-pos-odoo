@@ -69,3 +69,30 @@
     opacity: 0.55;
     pointer-events: none;
 }
+
+// ── Multi-copy ticket receipt ─────────────────────────────────────────────
+// Big header at the top of each copy (e.g. "1/4 TRANSACTION COPY").
+.pos-receipt .laundry-copy-header {
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    margin: 4px 0 8px;
+}
+
+// Box the one product line a TRANSACTION COPY is for (incl. its attributes,
+// which sit inside the same orderline element).
+.pos-receipt .orderline.laundry-boxed {
+    border: 1px solid currentColor;
+    padding: 4px 6px;
+    margin: 2px 0;
+}
+
+// Each printed copy on its own cut/page (thermal cut depends on printer setup).
+@media print {
+    .pos-receipt {
+        page-break-after: always;
+    }
+    .pos-receipt:last-child {
+        page-break-after: auto;
+    }
+}

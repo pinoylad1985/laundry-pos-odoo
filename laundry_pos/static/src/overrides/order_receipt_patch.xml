@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
+        <!-- Render the whole receipt once per copy (transaction/shop/customer). -->
+        <xpath expr="//div[hasclass('pos-receipt')]" position="attributes">
+            <attribute name="t-foreach">laundryCopies</attribute>
+            <attribute name="t-as">copy</attribute>
+            <attribute name="t-key">copy_index</attribute>
+        </xpath>
+
+        <!-- Big copy header at the top of each copy (when labelled). -->
+        <xpath expr="//ReceiptHeader" position="before">
+            <div t-if="copy.label" class="laundry-copy-header" t-esc="copy.label"/>
+        </xpath>
+
+        <!-- Box the one product line this copy is for (copy + line both in scope). -->
+        <xpath expr="//Orderline" position="attributes">
+            <attribute name="class">{ 'laundry-boxed': copy.boxedUuid and copy.boxedUuid === line.uuid }</attribute>
+        </xpath>
+    </t>
+</templates>
