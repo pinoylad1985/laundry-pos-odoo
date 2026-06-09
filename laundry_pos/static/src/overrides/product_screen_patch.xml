@@ -13,7 +13,6 @@
                         <div class="col-6 px-1">
                             <div><span class="fw-semibold">Customer Type:</span> <t t-esc="_getLaundryCustomerTypeLabel()"/></div>
                             <div><span class="fw-semibold">Services:</span> <t t-esc="_getLaundryServices()"/></div>
-                            <div><span class="fw-semibold">TAT:</span> <t t-esc="_getLaundryTAT()"/></div>
                         </div>
                         <!-- Column 2 -->
                         <div class="col-6 px-1">
@@ -26,6 +25,7 @@
                             <div t-if="_getLaundryDelivery()">
                                 <span class="fw-semibold"><t t-esc="_getLaundryDeliveryLabel()"/>:</span> <t t-esc="_getLaundryDelivery()"/>
                             </div>
+                            <div><span class="fw-semibold">TAT:</span> <t t-esc="_getLaundryTAT()"/></div>
                         </div>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary flex-shrink-0"

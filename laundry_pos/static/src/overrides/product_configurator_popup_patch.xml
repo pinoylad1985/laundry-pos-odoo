@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.ProductConfiguratorPopup" t-inherit-mode="extension">
-        <!-- Note telling the cashier how to change the (locked) turnaround. -->
-        <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="before">
-            <div t-if="hasLaundryTurnaround" class="alert alert-info py-2">
+        <!-- Note right below the "Turnaround" label, above its (locked) variants. -->
+        <xpath expr="//div[hasclass('attribute_name')]" position="after">
+            <div t-if="isTurnaroundAttr(attribute)" class="alert alert-info py-1 my-1 small">
                 Turnaround is set by the order's schedule. Adjust the pickup and/or
                 claim/delivery schedule in the New Order details to update the TAT.
             </div>
         </xpath>
-        <!-- Grey out + lock the turnaround attribute (it is driven by the TAT). -->
+        <!-- Mark the turnaround attribute so its variants are greyed / locked. -->
         <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="attributes">
             <attribute name="t-att-class">{ 'laundry-locked-attr': isTurnaroundAttr(attribute) }</attribute>
         </xpath>

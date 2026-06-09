@@ -56,9 +56,11 @@
     padding-left: 0;
 }
 
-// Greyed-out / locked attribute in the product configurator (turnaround is
-// driven by the schedule TAT, so it can't be changed here).
-.laundry-locked-attr {
+// Locked turnaround attribute in the product configurator: grey out only its
+// value selector (the variants), keeping the label and the note readable.
+.laundry-locked-attr .configurator_radio,
+.laundry-locked-attr .configurator_select,
+.laundry-locked-attr .color_attribute_list {
     opacity: 0.55;
     pointer-events: none;
 }

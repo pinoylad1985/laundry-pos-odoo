@@ -30,8 +30,8 @@
                 <div class="laundry-details">
                     <div><b>Customer Type:</b> <t t-esc="laundryCustomerType"/></div>
                     <!-- Services: label + a column of services, so each lines up
-                         under the first one (indented after "Services:"). -->
-                    <div t-if="laundryServices.length" class="d-flex">
+                         under the first one (indented after "Services: "). -->
+                    <div t-if="laundryServices.length" class="d-flex align-items-start">
                         <b style="white-space:nowrap;">Services:&#160;</b>
                         <div>
                             <div t-foreach="laundryServices" t-as="s" t-key="s_index">
@@ -39,10 +39,10 @@
                             </div>
                         </div>
                     </div>
-                    <div><b>TAT:</b> <t t-esc="laundryTAT"/></div>
                     <div><b>Service Type:</b> <t t-esc="laundryServiceType"/></div>
                     <div t-if="laundryPickup"><b>Pickup:</b> <t t-esc="laundryPickup"/></div>
                     <div t-if="laundryDelivery"><b><t t-esc="laundryDeliveryLabel"/>:</b> <t t-esc="laundryDelivery"/></div>
+                    <div><b>TAT:</b> <t t-esc="laundryTAT"/></div>
                 </div>
                 <div>&#160;</div>
             </t>
