@@ -21,6 +21,28 @@ patch(ProductConfiguratorPopup.prototype, {
         this._laundryPreselectTat(); // turnaround follows the order's TAT
     },
 
+    /**
+     * Guard against a core crash: setup() seeds `state.attributes` keyed by each
+     * attribute LINE's attribute_id, but initAttributes() then sets `.selected`
+     * on `state.attributes[value.attribute_id.id]` — keyed by each VALUE's
+     * attribute_id. If a product has a value whose attribute_id isn't one of the
+     * line keys (a malformed/mismigrated product, e.g. after a DB restore), core
+     * throws "Cannot set properties of undefined (setting 'selected')". We
+     * pre-create a state entry for every value's attribute_id first, so the
+     * assignment always lands somewhere instead of crashing the whole popup.
+     */
+    initAttributes() {
+        for (const line of this.props.productTemplate?.attribute_line_ids || []) {
+            for (const value of line.product_template_value_ids || []) {
+                const attrId = value.attribute_id?.id;
+                if (attrId != null && !this.state.attributes[attrId]) {
+                    this.state.attributes[attrId] = { selected: [], custom_value: "" };
+                }
+            }
+        }
+        return super.initAttributes(...arguments);
+    },
+
     // Pre-select each attribute value the line already has, so re-opening the
     // configurator shows the previous selection rather than a blank form.
     _laundryPreselectEdit() {
