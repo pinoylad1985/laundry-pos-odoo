@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+
+        <!-- Force itemized count: counted cash is read-only and only set by the
+             money-details (Count Cash) modal. -->
+        <xpath expr="//Input[@tModel=&quot;[state.payments[props.default_cash_details.id], 'counted']&quot;]" position="replace">
+            <input type="text" class="cash-input w-100 form-control"
+                   readonly="readonly"
+                   t-att-value="state.payments[props.default_cash_details.id].counted"
+                   placeholder="Tap the money button to count cash"/>
+        </xpath>
+
+        <!-- Disable 'copy expected amount' for cash: remove the clone button. -->
+        <xpath expr="//button[@t-on-click='autoFillCashCount']" position="replace"/>
+
+        <!-- Accountability checkbox, just above the footer buttons. -->
+        <xpath expr="//div[hasclass('flex-wrap')]" position="before">
+            <label class="laundry-confirm d-flex align-items-start gap-2 w-100 mb-2"
+                   t-if="pos.config.cash_control">
+                <input type="checkbox" t-model="state.laundryConfirmed" class="mt-1"/>
+                <span>Kinukumpirma ko na tama ang aking bilang at maaari akong mapatawan ng parusa sa maling pag-declare ng closing cash count.</span>
+            </label>
+        </xpath>
+
+    </t>
+</templates>

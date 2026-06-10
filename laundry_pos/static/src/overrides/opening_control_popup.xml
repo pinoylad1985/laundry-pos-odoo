@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-inherit="point_of_sale.OpeningControlPopup" t-inherit-mode="extension">
+
+        <!-- Force itemized count: opening amount is read-only and only set by the
+             money-details (Count Cash) modal. -->
+        <xpath expr="//Input[@tModel=&quot;[state, 'openingCash']&quot;]" position="replace">
+            <input type="text" class="form-control cash-input"
+                   readonly="readonly"
+                   t-att-value="state.openingCash"
+                   placeholder="Tap 'Count Cash' to count the drawer"/>
+        </xpath>
+
+        <!-- Make the money button read as 'Count Cash'. -->
+        <xpath expr="//div[@t-on-click='openDetailsPopup']" position="inside">
+            <span class="ms-2">Count Cash</span>
+        </xpath>
+
+        <!-- Over/short display + accountability checkbox. -->
+        <xpath expr="//div[hasclass('opening-cash-section')]" position="inside">
+            <div class="laundry-cash-control mt-3">
+                <div class="d-flex justify-content-between"
+                     t-att-class="{'text-danger fw-bold': !openingZeroVariance}">
+                    <span>Opening cash difference:</span>
+                    <span t-esc="env.utils.formatCurrency(openingDifference)"/>
+                </div>
+                <div class="d-flex justify-content-between text-muted">
+                    <span>Opening cash expected:</span>
+                    <span t-esc="env.utils.formatCurrency(expectedOpening)"/>
+                </div>
+                <small class="text-muted d-block">(previous session closing cash counted)</small>
+                <div class="d-flex justify-content-between text-muted">
+                    <span>Opening cash counted:</span>
+                    <span t-esc="env.utils.formatCurrency(openingCounted)"/>
+                </div>
+                <label class="laundry-confirm d-flex align-items-start gap-2 mt-3">
+                    <input type="checkbox" t-model="state.laundryConfirmed" class="mt-1"/>
+                    <span>Kinukumpirma ko na tama ang aking bilang at maaari akong mapatawan ng parusa sa maling pag-declare ng opening cash count.</span>
+                </label>
+            </div>
+        </xpath>
+
+        <!-- Gate the Open Register button on count + zero variance + confirmation. -->
+        <xpath expr="//button[@t-on-click='confirm']" position="attributes">
+            <attribute name="t-att-disabled">!canLaundryOpen</attribute>
+        </xpath>
+
+    </t>
+</templates>

@@ -1,0 +1,29 @@
+// Cash-control accountability (opening + closing popups).
+
+.laundry-cash-control {
+    font-size: 14px;
+
+    > div {
+        padding: 1px 0;
+    }
+}
+
+// The Tagalog confirmation checkbox row — keep the long text readable.
+.laundry-confirm {
+    cursor: pointer;
+    line-height: 1.25;
+    font-size: 13px;
+
+    input[type="checkbox"] {
+        flex: 0 0 auto;
+        width: 1.1rem;
+        height: 1.1rem;
+    }
+}
+
+// Read-only counted/opening amount display should look like the disabled input
+// it replaces, not an editable field.
+input.cash-input[readonly] {
+    background-color: var(--bs-secondary-bg, #e9ecef);
+    cursor: not-allowed;
+}
