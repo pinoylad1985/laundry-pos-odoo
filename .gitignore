@@ -3,3 +3,7 @@ __pycache__/
 *.pyo
 .DS_Store
 Thumbs.db
+
+# Third-party MCP server tool — a separate clone of pantalytics/odoo-mcp-pro
+# that lives inside this folder but is NOT part of this module.
+odoo-mcp-pro/
