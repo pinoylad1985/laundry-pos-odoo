@@ -242,6 +242,16 @@ patch(ProductScreen.prototype, {
         order.laundry_schedule      = result.schedule   || {};
         order.laundry_turnaround    = result.turnaround || null;
 
+        // Persist the order details as real pos.order fields (reportable in the
+        // backend). Cashier Due / Phone / Address are computed server-side.
+        const { DateTime } = luxon;
+        const toDT = (d, h) => (d ? DateTime.fromISO(`${d}T${h || "00:00"}:00`) : false);
+        const sched = result.schedule || {};
+        order.laundry_services          = this._getLaundryServices();
+        order.laundry_claim_datetime    = toDT(sched.claimDate, sched.claimHour);
+        order.laundry_pickup_datetime   = toDT(sched.pickupDate, sched.pickupHour);
+        order.laundry_delivery_datetime = toDT(sched.deliveryDate, sched.deliveryHour);
+
         // The TAT may have changed (e.g. new schedule via Change) — push it onto
         // the already-configured laundry lines so their turnaround stays in sync.
         await this._reapplyTatToLaundryLines(order);
