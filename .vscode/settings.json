@@ -1,0 +1,8 @@
+{
+  // Stop VS Code's Git extension from auto-detecting the embedded third-party
+  // MCP server clone (odoo-mcp-pro) as a separate source-control repository.
+  "git.ignoredRepositories": [
+    "odoo-mcp-pro",
+    "${workspaceFolder}/odoo-mcp-pro"
+  ]
+}
