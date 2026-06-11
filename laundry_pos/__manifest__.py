@@ -7,6 +7,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/laundry_service_type_data.xml',
+        'data/demangle_server_action.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
