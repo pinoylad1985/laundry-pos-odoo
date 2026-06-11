@@ -58,6 +58,11 @@
     <em>no</em> Addons/Git tab. Both database restores and custom-module deploys are done <strong>on the server</strong>
     (commands below), not through the dashboard.
   </div>
+  <div class="note">
+    <strong>Preferred way to run server commands:</strong> from <strong>PowerShell on your PC</strong> via
+    <code>ssh root&#64;&lt;SERVER_IP&gt;</code>. The DigitalOcean web Console is used only for the one-time SSH-key
+    setup, or as a fallback if SSH isn't available.
+  </div>
 
   <h2 id="prereqs">1. Prerequisites &amp; conventions</h2>
   <ul>
@@ -83,27 +88,27 @@
     </ol>
   </div>
 
-  <h2 id="ssh">3. Get a server shell</h2>
-  <p>You need a root terminal on the droplet. Two ways:</p>
-  <h3>Option A — DigitalOcean web Console (no key needed)</h3>
+  <h2 id="ssh">3. Get a server shell (PowerShell + SSH — preferred)</h2>
+  <p>Run all server commands from <strong>PowerShell on your PC</strong> via SSH. You only need the DigitalOcean
+     Console <em>once</em>, to install your key.</p>
+  <h3>One-time — install your SSH key</h3>
   <div class="step">
-    <ol>
-      <li><a href="https://cloud.digitalocean.com">cloud.digitalocean.com</a> &rarr; <strong>Droplets</strong> &rarr; your droplet &rarr; <strong>Console</strong>.</li>
-      <li>If it asks for a password you don't have: <strong>Access &rarr; Reset Root Password</strong>, then log in with the emailed temp password.</li>
-    </ol>
-  </div>
-  <h3>Option B — SSH from your PC (for <code>scp</code> file uploads)</h3>
-  <div class="step">
-    <p>On Windows PowerShell, create a key (skip if you have one) and show its public half:</p>
+    <p>In <strong>PowerShell</strong>, create a key (skip if you already have one) and show its public half:</p>
     <pre><code>ssh-keygen -t ed25519
 Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub</code></pre>
-    <p>In the <strong>DO Console</strong> (Option A), add that public key so your PC can log in:</p>
+    <p>Open the <strong>DigitalOcean web Console</strong> once (Droplet &rarr; <strong>Console</strong>; if it needs a
+       password use <strong>Access &rarr; Reset Root Password</strong>) and paste your public key in:</p>
     <pre><code>mkdir -p ~/.ssh &amp;&amp; chmod 700 ~/.ssh
 echo "PASTE_YOUR_PUBLIC_KEY_LINE_HERE" &gt;&gt; ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys</code></pre>
-    <p>Now <code>ssh root@&lt;SERVER_IP&gt;</code> works from PowerShell.</p>
   </div>
-  <div class="note"><strong>Two windows, don't mix them up:</strong> <code>PS C:\…&gt;</code> is your PC; <code>root@…:~#</code> is the server. <code>scp</code> runs on your PC; restore commands run on the server.</div>
+  <h3>Every time after — connect from PowerShell</h3>
+  <div class="step">
+    <pre><code>ssh root@&lt;SERVER_IP&gt;</code></pre>
+    <p>Enter your key passphrase; the prompt becomes <code>root@…:~#</code>. Run all the server commands below here.
+       (The DigitalOcean web Console remains a fallback if SSH is ever unavailable.)</p>
+  </div>
+  <div class="note"><strong>Two windows, don't mix them up:</strong> <code>PS C:\…&gt;</code> is your PC; <code>root@…:~#</code> is the server (after you SSH in). <code>scp</code> runs on your PC; the restore / module commands run on the server.</div>
 
   <h2 id="swap">4. Add swap (prevents out-of-memory crashes)</h2>
   <p>Small droplets (1–2 GB) run Odoo right at the memory ceiling. Add a 2 GB swap file once (run on the server):</p>
@@ -177,10 +182,13 @@ systemctl restart odona-&lt;DB&gt;</code></pre>
   <div class="ok">Tip: if the module doesn't appear, the code isn't on the addons path — re-check the <code>addons_path</code> line points at the folder <em>containing</em> the module's <code>__manifest__.py</code>.</div>
 
   <h2 id="updates">7. Ongoing module updates</h2>
-  <p>After you push new commits to GitHub, deploy them on the server with:</p>
+  <p>After you push new commits to GitHub: from <strong>PowerShell</strong>, <code>ssh root@&lt;SERVER_IP&gt;</code>, then:</p>
   <div class="step">
     <pre><code>cd &lt;INSTANCE_DIR&gt;/extra-addons/my-module &amp;&amp; git pull &amp;&amp; systemctl restart odona-&lt;DB&gt;</code></pre>
     <p>Then in Odoo: <strong>Apps &rarr; (your module) &rarr; Upgrade</strong>. For pure JS/XML asset changes, also hard-refresh the browser (clear the POS cache if it looks stale).</p>
+    <p class="warn"><strong>First pull after a fresh clone</strong> may fail with <em>"dubious ownership"</em> (the clone is owned by the <code>odoo</code> user but git runs as root). Whitelist it once, then re-run:
+    <br/><code>git config --global --add safe.directory &lt;INSTANCE_DIR&gt;/extra-addons/my-module</code><br/>
+    If a pull leaves files root-owned, restore ownership: <code>chown -R odoo:odoo &lt;INSTANCE_DIR&gt;/extra-addons/my-module</code>.</p>
   </div>
 
 </main>
