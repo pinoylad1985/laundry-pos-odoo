@@ -65,14 +65,20 @@
   <table>
     <tr><th>Item</th><th>Value</th></tr>
     <tr><td>Server (SSH)</td><td><code>root&#64;152.42.176.183</code> (key auth)</td></tr>
-    <tr><td>Stack / container prefix</td><td><code>861a2d3f-d860-4e34-b85b-d0fdef725ab9</code></td></tr>
-    <tr><td>Odoo container</td><td><code>&lt;stack&gt;_odoo</code> (image <code>odoo:19.0</code>)</td></tr>
-    <tr><td>DB container</td><td><code>&lt;stack&gt;_db</code> (image <code>pgvector/pgvector:pg16</code>)</td></tr>
+    <tr><td>Stack / container prefix</td><td><code>&lt;UUID&gt;</code> (see warning below — not stable)</td></tr>
+    <tr><td>Odoo container</td><td><code>&lt;UUID&gt;_odoo</code> (image <code>odoo:19.0</code>)</td></tr>
+    <tr><td>DB container</td><td><code>&lt;UUID&gt;_db</code> (image <code>pgvector/pgvector:pg16</code>)</td></tr>
     <tr><td>Proxy</td><td><code>traefik:v3.6</code> (ports 80/443)</td></tr>
     <tr><td>Addons path (in container)</td><td><code>/mnt/extra-addons/odoo-enterprise</code>, <code>/mnt/extra-addons/laundry-pos-odoo</code></td></tr>
   </table>
+  <div class="warn"><strong>The <code>&lt;UUID&gt;</code> is not stable.</strong> OEC.SH generates a new stack UUID every time
+    the environment is deleted/recreated, and the database name equals the UUID. <strong>Never hardcode it</strong> —
+    discover the current one first (run from PowerShell):
+    <pre><code>ssh root&#64;152.42.176.183 "docker ps --format '{{.Names}}'; ls /opt/oecsh/"</code></pre>
+    Use the name ending in <code>_odoo</code> (strip that suffix to get the UUID / DB name). Substitute it for
+    <code>&lt;UUID&gt;</code> everywhere below.</div>
   <div class="note">Addons live <em>inside</em> the Docker container (bind-mounted from
-    <code>/opt/oecsh/&lt;stack&gt;/addons</code>, read-only). There is no bare-metal <code>/mnt/extra-addons</code> on the host —
+    <code>/opt/oecsh/&lt;UUID&gt;/addons</code>, read-only). There is no bare-metal <code>/mnt/extra-addons</code> on the host —
     let the OEC.SH Git sync populate it; don't hand-edit files there.</div>
 
   <h2 id="enterprise">2. Enable Odoo Enterprise</h2>
@@ -125,26 +131,28 @@
      &rarr; search <strong>Laundry POS</strong> &rarr; <strong>Install</strong>.</p>
 
   <h2 id="dbname">6. Why the database name is a UUID (not <code>laundryx</code>)</h2>
-  <p>OEC.SH auto-generates the database name from the environment UUID
-     (<code>861a2d3f-d860-4e34-b85b-d0fdef725ab9</code>), set as <code>db_name</code>/<code>db_host</code> in
-     <code>odoo.conf</code> with a matching <code>dbfilter</code>. This is <strong>by design</strong> — it supports
-     multi-environment cloning (each clone needs a unique DB). <code>laundryx</code> is just the project/subdomain label;
-     the Postgres DB underneath is the UUID. (Contrast Cloudpepper, where the DB is literally named <code>laundryx</code>.)
-     You did nothing wrong.</p>
+  <p>OEC.SH auto-generates the database name from the environment <code>&lt;UUID&gt;</code>, set as
+     <code>db_name</code>/<code>db_host</code> in <code>odoo.conf</code> with a matching <code>dbfilter</code>. This is
+     <strong>by design</strong> — it supports multi-environment cloning (each clone needs a unique DB).
+     <code>laundryx</code> is just the project/subdomain label; the Postgres DB underneath is the UUID. (Contrast
+     Cloudpepper, where the DB is literally named <code>laundryx</code>.) You did nothing wrong. Note the UUID
+     <strong>changes whenever the environment is recreated</strong> — see the warning in section 1.</p>
 
   <h2 id="pwreset">7. Admin password recovery</h2>
-  <p>Admin login on this DB: user id <strong>2</strong> = <code>pinoylad1985&#64;gmail.com</code>. To reset it, SSH in
-     (<code>ssh root&#64;152.42.176.183</code> from PowerShell) and run the Odoo shell inside the container:</p>
+  <p>Admin login on this DB: user id <strong>2</strong> = <code>pinoylad1985&#64;gmail.com</code>. Discover the current
+     <code>&lt;UUID&gt;</code> (section 1), then run from PowerShell on your PC — it resets user id 2 and prints its login:</p>
   <div class="step">
-    <pre><code>docker exec -i 861a2d3f-d860-4e34-b85b-d0fdef725ab9_odoo \
-  odoo shell -d 861a2d3f-d860-4e34-b85b-d0fdef725ab9 --no-http &lt;&lt; 'EOF'
+    <pre><code>ssh root&#64;152.42.176.183 "docker exec -i &lt;UUID&gt;_odoo odoo shell -d &lt;UUID&gt; --no-http &lt;&lt;'EOF'
 env['res.users'].browse(2).write({'password': 'YOUR_NEW_PASSWORD'})
 env.cr.commit()
-print("Password reset successfully!")
-EOF</code></pre>
+print('Password reset for login: ' + env['res.users'].browse(2).login)
+EOF"</code></pre>
   </div>
   <div class="warn">You <strong>must</strong> pass <code>--no-http</code>, otherwise the shell tries to bind port 8069
     (already used by the running Odoo) and crashes with <em>Address already in use</em>.</div>
+  <div class="note">Targets <strong>user id 2</strong> (the admin) regardless of its login name, so it works whether the DB is a
+    fresh Odoo (<code>admin</code>) or your restored backup (<code>pinoylad1985&#64;gmail.com</code>). The printed login tells
+    you which username to use.</div>
 
 </main>
 <footer>
