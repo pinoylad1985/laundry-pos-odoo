@@ -1,74 +1,73 @@
 # Laundry POS — Claude Code Project Context
 
 ## What This Project Is
-A custom Odoo 19 Enterprise module (`laundry_pos`) for **laundryx.app** hosted on Cloudpepper.
-It adds a laundry-specific workflow to the Point of Sale (POS) module.
+A custom Odoo 19 Enterprise module (`laundry_pos`) for **laundryx** that adds a laundry-specific
+workflow to the Point of Sale (POS). It is deployed to **two separate hosts** (see below).
 
-## Deployment Pipeline
-```
-Edit files here (VS Code)
-    → Commit & push to GitHub (Source Control panel ⑂ in VS Code)
-        → Cloudpepper dashboard → Addons → Update (pulls from GitHub)
-            → Odoo → Apps → Laundry POS → ⋮ → Upgrade
-                → Test in POS
-```
+> **Full feature/technical reference:** [docs/laundry-pos-customizations.html](docs/laundry-pos-customizations.html)
+> documents every customization in detail. End-user guide: [docs/laundry-pos-module-guide.html](docs/laundry-pos-module-guide.html).
+> Keep those in sync when behavior changes.
+
+## Deployment (two hosts, different processes — do NOT conflate)
+- **Cloudpepper free tier** (`laundryx.app`, droplet `139.59.114.14`): no dashboard Git/Addons tab; deploys
+  done server-side over SSH. SOP: [docs/cloudpepper-free-tier-sop.html](docs/cloudpepper-free-tier-sop.html).
+- **OEC.SH** (droplet `152.42.176.183`, Dockerised Odoo 19): connect the repo as "Your ERP Code" → environment
+  **Deploy**. SOP: [docs/oecsh-deploy-sop.html](docs/oecsh-deploy-sop.html).
+
+In both cases: after the code is on the server, in Odoo do **Apps → Update Apps List → Install/Upgrade Laundry POS**.
+
 - **GitHub repo:** https://github.com/pinoylad1985/laundry-pos-odoo
-- **Live site:** https://laundryx.app
-- **Odoo version:** 19 (Enterprise)
-- **Python version:** 3.13
+- **Odoo version:** 19 (Enterprise) · **Python:** 3.13 · **Frontend:** OWL 2
 
 ## Module Structure
 ```
 laundry_pos/
-├── __manifest__.py              # Module definition, asset registration
-├── __init__.py
+├── __manifest__.py                  # depends: point_of_sale; assets glob static/src/**/*.{scss,js,xml}
 ├── models/
-│   ├── __init__.py
-│   ├── laundry_service_type.py  # laundry.service.type model (5 pre-loaded types)
-│   ├── pos_order.py             # Adds laundry_customer_type + laundry_service_type fields
-│   └── product_template.py     # Adds laundry_service_type_ids M2M + computed codes field
-├── security/
-│   └── ir.model.access.csv     # Access rights for laundry.service.type
+│   ├── pos_order.py                 # laundry_* fields on pos.order (+ computed due/phone/address)
+│   ├── res_partner.py               # pos_tag_names computed char (for receipt tags)
+│   └── laundry_service_type.py      # laundry.service.type catalog model (5 seeded types)
+├── security/ir.model.access.csv
 ├── data/
-│   └── laundry_service_type_data.xml  # Seeds the 5 service types
-├── views/
-│   └── product_template_views.xml    # Adds "Laundry Services" tab to product form
+│   ├── laundry_service_type_data.xml   # seeds the 5 service types
+│   └── demangle_server_action.xml      # one-time Contacts maintenance action (not POS runtime)
 └── static/src/
-    ├── new_order_modal/
-    │   ├── new_order_modal.js   # OWL modal component (2-step wizard)
-    │   └── new_order_modal.xml  # Modal template (Bootstrap buttons)
+    ├── utils/
+    │   ├── laundry_instructions.js  # LAUNDRY_MENU: 4 service products matched BY NAME
+    │   ├── laundry_products.js      # name matching, TAT helpers, configured-line vals
+    │   └── laundry_storage.js       # localStorage per-order persistence (keyed by uuid)
+    ├── new_order_modal/             # 4-step modal (customer / services / type / schedule)
     └── overrides/
-        ├── pos_store.js         # Patches addNewOrder to set _needsLaundrySetup flag
-        └── product_screen_patch.js  # Patches ProductScreen to show modal + filter products
+        ├── pos_store.js             # addNewOrder flag, selectPartner block, no-merge, printReceipt, pay gates
+        ├── product_screen_patch.*   # opens modal, banner, rehydrate, addProduct block
+        ├── order_display_patch.js   # fixed line order (WDF→Press→DWC→Shoe)
+        ├── order_summary_patch.js   # tap a laundry line → fresh configurator
+        ├── order_line_patch.*       # per-line receipt attributes, WDF/Press count lines
+        ├── pos_order_line_patch.js  # qty rules (DWC/Shoe=1, WDF per-kg, Press>1)
+        ├── product_configurator_popup_patch.* # pre-fill, TAT lock, crash guard
+        ├── order_receipt_patch.*    # multi-copy thermal receipt
+        ├── receipt_header_patch.* + receipt_header.xml + laundry_receipt.scss
+        └── opening_control_popup_patch.* / closing_popup_patch.* / cash_control.scss  # cash control
 ```
 
+> **No `product_template.py` and no product views.** The old "Laundry Services tab" / `laundry_service_type_ids`
+> M2M / `productsToDisplay` filtering were **removed**. Products are now recognised by NAME (Wash-Dry-Fold,
+> Dry/Wet Clean, Shoe Clean, Press) via `LAUNDRY_MENU`.
+
 ## Key Technical Decisions
+- **No `_load_pos_data_fields` override on `pos.order`** — its default returns `[]` (read ALL fields), so our
+  selection fields load automatically. Overriding it to a specific list would drop lines/partner/amounts.
+- **Order fields are computed-stored, NOT `related`** — a stored `related` is writable and would push values back to
+  `res.partner` (POS could wipe the customer's phone on sync). Computed = one-way (partner → order).
+- **`addNewOrder` stays synchronous** — it's called 10+ places without `await`; async leaves `order.uuid` undefined
+  before navigation → `/product/undefined` crash. We set `order._needsLaundrySetup` and let ProductScreen react.
+- **Products matched by NAME, not IDs/tags** — survives DB restores and re-seeding; no per-product config needed.
+- **localStorage for laundry meta** — the `laundry_*` JS fields aren't server-synced, so they're rehydrated across reloads.
+- **Turnaround (TAT) is computed from the schedule and locked** — not a free cashier choice; keeps lines/receipt consistent.
+- **Configurator crash guard** — `initAttributes()` pre-seeds `state.attributes` for every value's `attribute_id` so
+  malformed products (e.g. after a DB restore) don't crash the popup.
 
-### Why pos_order.py has NO _load_pos_data_fields override
-`pos.order` in Odoo 19 has no `_load_pos_data_fields` by default, which means it
-inherits the mixin default of `[]` (empty list = load ALL fields via read([])).
-If we override it and return a specific list, Odoo would ONLY load those fields,
-breaking the entire order (missing lines, partner, amount_total, etc.).
-Our selection fields (`laundry_customer_type`, `laundry_service_type`) are automatically
-included when all fields are read.
-
-### Why product_template.py HAS _load_pos_data_fields override
-`product.template` in Odoo 19 DOES have its own explicit field list (30+ fields).
-We correctly extend that list by calling super() first, then appending our field.
-
-### Why addNewOrder is synchronous (not async)
-`addNewOrder` is called in 10+ places across Odoo without `await`. Making it async
-causes the order UUID to be undefined before navigation fires → `/product/undefined` crash.
-Instead, we set `order._needsLaundrySetup = true` on the order and let ProductScreen
-detect it via `useEffect` and show the modal after the screen loads.
-
-### OWL Patterns Used (Odoo 19)
-- `patch(Class.prototype, { ... })` — extends existing classes
-- `makeAwaitable(this.dialog, ModalComponent, props)` — shows modal, returns Promise
-- `useEffect(() => { effect }, () => [dependency])` — runs when dependency changes
-- `super.addNewOrder(...arguments)` — calls original method in patches
-
-## Service Types (pre-loaded data)
+## Service Types (seeded data + frontend list)
 | Code | Label |
 |------|-------|
 | `dropoff` | Drop-off |
@@ -77,42 +76,24 @@ detect it via `useEffect` and show the modal after the screen loads.
 | `locker` | Locker |
 | `self_service` | Self-service |
 
-## Current Status ✅
-
-### Working
-- Modal appears automatically when a new POS order is opened
-- Customer Type selection: New Customer / Returning Customer
-- Service Type selection: all 5 options shown
-- Skip for now / Continue → buttons
-- Product filtering logic written (filters by `laundry_service_type_codes`)
-- "Laundry Services" tab on product form for tagging products
-
-### Pending / Not Yet Tested
-- **Continue → button flow**: should open PartnerList for customer creation or search
-- **Product filtering in POS**: products need to be tagged first (see below)
-- **Receipt customization**: parked — user wants to see format first
-- **Sync of laundry fields back to server**: `laundry_service_type` set on JS order
-  object needs to verify it persists after sync_from_ui
-
-## How to Tag Products (non-technical steps)
-1. Odoo → Point of Sale → Products → Products
-2. Open a product (e.g. Wash-Dry-Fold)
-3. Click the **Laundry Services** tab
-4. In "Available for Service Types" select which service types apply
-5. Leave blank = product shows for ALL service types
-6. Save
+## Service Products (matched by name)
+| Code | Name contains | Quantity behavior |
+|------|---------------|-------------------|
+| `wdf` | Wash-Dry-Fold | per-KG, editable; min weight at payment (6kg single / 4kg each multi) |
+| `dwc` | Dry/Wet Clean | locked to 1; long turnaround |
+| `shoe` | Shoe Clean | locked to 1; long turnaround |
+| `press` | Press | may exceed 1 |
 
 ## Important Files NOT to Break
-- `models/pos_order.py` — do NOT add `_load_pos_data_fields` here
-- `static/src/overrides/pos_store.js` — `addNewOrder` must stay synchronous
-- `__manifest__.py` — asset glob `laundry_pos/static/src/**/*.js` picks up all JS files
+- `models/pos_order.py` — do NOT add `_load_pos_data_fields`; keep order fields computed (not related).
+- `static/src/overrides/pos_store.js` — `addNewOrder` must stay synchronous.
+- `__manifest__.py` — asset glob `laundry_pos/static/src/**/*` picks up all SCSS/JS/XML.
 
 ## Odoo 19 POS Architecture Notes
-- Frontend framework: OWL 2 (`@odoo/owl`)
 - Popup pattern: `makeAwaitable` from `@point_of_sale/app/utils/make_awaitable_dialog`
-- POS store: `@point_of_sale/app/services/pos_store` → `PosStore` class
+- POS store: `@point_of_sale/app/services/pos_store` → `PosStore`
 - Product screen: `@point_of_sale/app/screens/product_screen/product_screen`
-- Partner list: `@point_of_sale/app/screens/partner_list/partner_list`
-- Product filter getter: `get productsToDisplay()` on PosStore (patched by us)
-- Asset bundle for POS: `point_of_sale._assets_pos`
-- Models loaded via: `_load_pos_data_fields` + `_load_pos_data_read` (pos.load.mixin)
+- Configurator: `@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup`
+- Cash control: opening/closing popups under `@point_of_sale/app/components/popups/`
+- Asset bundle: `point_of_sale._assets_pos` · Models loaded via `_load_pos_data_fields` + `_load_pos_data_read`
+- OWL: `patch(Class.prototype, {...})`, `useEffect(effect, () => [deps])`, `super.method(...arguments)`

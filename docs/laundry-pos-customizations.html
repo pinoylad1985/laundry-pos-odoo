@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Laundry POS — Customizations Reference (everything the module changes)</title>
+<style>
+  :root { --accent:#4a3f8a; --bg:#f8f8fc; --code:#1e1e1e; --codefg:#e6e6e6; --warn:#b3261e; --ok:#1b7f4b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; line-height:1.55;
+         color:#222; background:var(--bg); margin:0; padding:0 0 80px; }
+  header { background:var(--accent); color:#fff; padding:28px 32px; }
+  header h1 { margin:0 0 6px; font-size:24px; }
+  header p { margin:0; opacity:.9; font-size:14px; }
+  main { max-width:940px; margin:0 auto; padding:0 24px; }
+  h2 { margin-top:40px; padding-bottom:6px; border-bottom:2px solid var(--accent); color:var(--accent); }
+  h3 { margin-top:26px; }
+  code { background:#eee; padding:1px 5px; border-radius:4px; font-family:Consolas,Menlo,monospace; font-size:90%; }
+  pre { background:var(--code); color:var(--codefg); padding:14px 16px; border-radius:8px; overflow-x:auto;
+        font-family:Consolas,Menlo,monospace; font-size:13px; line-height:1.45; }
+  pre code { background:none; padding:0; color:inherit; }
+  .note { background:#eef6ff; border-left:4px solid #2b78c2; padding:10px 14px; border-radius:6px; margin:14px 0; }
+  .warn { background:#fdeceb; border-left:4px solid var(--warn); padding:10px 14px; border-radius:6px; margin:14px 0; }
+  .ok   { background:#eaf7ef; border-left:4px solid var(--ok);  padding:10px 14px; border-radius:6px; margin:14px 0; }
+  .why  { background:#f4f1fb; border-left:4px solid var(--accent); padding:10px 14px; border-radius:6px; margin:14px 0; }
+  .card { background:#fff; border:1px solid #e3e1ef; border-radius:10px; padding:4px 20px 14px; margin:18px 0;
+          box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  table { border-collapse:collapse; width:100%; margin:14px 0; font-size:14px; }
+  th,td { border:1px solid #ddd; padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#ece9f6; }
+  .file { font-family:Consolas,Menlo,monospace; font-size:12px; color:var(--accent); }
+  .toc a { color:var(--accent); text-decoration:none; }
+  .toc a:hover { text-decoration:underline; }
+  footer { max-width:940px; margin:40px auto 0; padding:16px 24px; color:#888; font-size:13px; border-top:1px solid #ddd; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Laundry POS — Customizations Reference</h1>
+  <p>A complete inventory of everything the <code>laundry_pos</code> module changes in Odoo 19 POS — models, behaviors, and the design reasons behind them. Generated from the source on branch <code>main</code>.</p>
+</header>
+<main>
+
+  <div class="note">
+    This is the <strong>technical/feature reference</strong>. For end-user click-through usage see
+    <a href="laundry-pos-module-guide.html">laundry-pos-module-guide.html</a>; for deployment see the
+    <a href="cloudpepper-free-tier-sop.html">Cloudpepper</a> or <a href="oecsh-deploy-sop.html">OEC.SH</a> SOP.
+  </div>
+
+  <div class="warn">
+    <strong>Important change vs. older docs:</strong> the original "Laundry Services tab" product-tagging and
+    service-type product filtering have been <strong>removed</strong>. The module now recognises <strong>4 fixed service
+    products by NAME</strong> (Wash-Dry-Fold, Dry/Wet Clean, Shoe Clean, Press) and the New Order modal's service
+    <em>pills</em> add those products to the order. There is no <code>product_template.py</code> and no product views in
+    the current module.
+  </div>
+
+  <div class="note toc">
+    <strong>Contents</strong>
+    <ol>
+      <li><a href="#arch">Architecture &amp; file map</a></li>
+      <li><a href="#backend">Backend models &amp; fields</a></li>
+      <li><a href="#products">Service products (name matching)</a></li>
+      <li><a href="#modal">New Order modal &amp; turnaround logic</a></li>
+      <li><a href="#banner">Order banner &amp; persistence</a></li>
+      <li><a href="#lines">Cart lines: merge, quantity, ordering</a></li>
+      <li><a href="#configurator">Configurator behavior &amp; crash guard</a></li>
+      <li><a href="#payment">Payment gates</a></li>
+      <li><a href="#receipt">Receipt customization</a></li>
+      <li><a href="#cash">Cash control (open / close)</a></li>
+      <li><a href="#demangle">Maintenance: Demangle customer names</a></li>
+      <li><a href="#decisions">Key design decisions (why)</a></li>
+    </ol>
+  </div>
+
+  <h2 id="arch">1. Architecture &amp; file map</h2>
+  <p>Odoo 19 Enterprise POS, OWL 2 frontend. The module depends only on <code>point_of_sale</code> and registers all
+     <code>static/src/**</code> SCSS/JS/XML into the <code>point_of_sale._assets_pos</code> bundle via glob.</p>
+  <table>
+    <tr><th>Area</th><th>Files</th></tr>
+    <tr><td>Models</td><td><span class="file">models/pos_order.py, res_partner.py, laundry_service_type.py</span></td></tr>
+    <tr><td>Data</td><td><span class="file">data/laundry_service_type_data.xml, data/demangle_server_action.xml</span></td></tr>
+    <tr><td>Shared utils</td><td><span class="file">static/src/utils/laundry_products.js, laundry_instructions.js, laundry_storage.js</span></td></tr>
+    <tr><td>New Order modal</td><td><span class="file">static/src/new_order_modal/new_order_modal.js + .xml</span></td></tr>
+    <tr><td>POS store / screen</td><td><span class="file">overrides/pos_store.js, product_screen_patch.js/.xml</span></td></tr>
+    <tr><td>Cart / lines</td><td><span class="file">overrides/order_display_patch.js, order_summary_patch.js, order_line_patch.js/.xml, pos_order_line_patch.js</span></td></tr>
+    <tr><td>Configurator</td><td><span class="file">overrides/product_configurator_popup_patch.js/.xml</span></td></tr>
+    <tr><td>Receipt</td><td><span class="file">overrides/order_receipt_patch.js/.xml, receipt_header_patch.js/receipt_header.xml, laundry_receipt.scss</span></td></tr>
+    <tr><td>Cash control</td><td><span class="file">overrides/opening_control_popup_patch.js/.xml, closing_popup_patch.js/closing_popup.xml, cash_control.scss</span></td></tr>
+  </table>
+
+  <h2 id="backend">2. Backend models &amp; fields</h2>
+
+  <h3><code>laundry.service.type</code> <span class="file">models/laundry_service_type.py</span></h3>
+  <p>Simple catalog model (<code>name</code>, <code>code</code>, <code>sequence</code>, <code>active</code>). Seeded with
+     5 types via <span class="file">data/laundry_service_type_data.xml</span> (<code>noupdate="1"</code>):
+     Drop-off, Drop-off &amp; Delivery, Pickup &amp; Delivery, Locker, Self-service. (The POS frontend currently uses its
+     own hardcoded list of the same 5 types.)</p>
+
+  <h3><code>pos.order</code> extra fields <span class="file">models/pos_order.py</span></h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td><code>laundry_customer_type</code></td><td>Selection</td><td>new / returning</td></tr>
+    <tr><td><code>laundry_service_type</code></td><td>Selection</td><td>dropoff / dropoff_delivery / pickup_delivery / locker / self_service</td></tr>
+    <tr><td><code>laundry_turnaround</code></td><td>Selection</td><td>express / regular</td></tr>
+    <tr><td><code>laundry_services</code></td><td>Char</td><td>comma-joined service names</td></tr>
+    <tr><td><code>laundry_claim_datetime</code></td><td>Datetime</td><td>set from modal submit</td></tr>
+    <tr><td><code>laundry_pickup_datetime</code></td><td>Datetime</td><td>set from modal submit</td></tr>
+    <tr><td><code>laundry_delivery_datetime</code></td><td>Datetime</td><td>set from modal submit</td></tr>
+    <tr><td><code>laundry_due_datetime</code></td><td>Datetime, computed+stored</td><td>"Cashier Due" = delivery datetime, else claim datetime</td></tr>
+    <tr><td><code>laundry_customer_phone</code></td><td>Char, computed+stored</td><td>from <code>partner_id.phone</code></td></tr>
+    <tr><td><code>laundry_customer_address</code></td><td>Char, computed+stored</td><td><code>street</code> + <code>street2</code></td></tr>
+  </table>
+  <div class="why"><strong>Why computed-stored, not <code>related</code>:</strong> a stored <code>related</code> field is
+    writable and would push values back to <code>res.partner</code> — POS could wipe the customer's phone on order sync.
+    A computed field has no inverse, so it stays one-way (partner → order) and any stale value POS sends is corrected on
+    the next recompute. Also: <strong>no <code>_load_pos_data_fields</code> override</strong> on <code>pos.order</code> —
+    its default returns <code>[]</code> (read ALL fields), so the selection fields load automatically; overriding it
+    would break the order load.</div>
+
+  <h3><code>res.partner.pos_tag_names</code> <span class="file">models/res_partner.py</span></h3>
+  <p>Computed comma-joined <code>category_id</code> names, added to <code>_load_pos_data_fields</code>.</p>
+  <div class="why"><strong>Why:</strong> the receipt needs customer tags without loading the
+    <code>res.partner.category</code> model. Relational loading only pulls categories referenced by pre-loaded partners,
+    so tags on customers fetched on-demand (cashier search) would otherwise be missing. A precomputed string on the
+    partner is always present.</div>
+
+  <h2 id="products">3. Service products (name matching) <span class="file">utils/laundry_instructions.js, laundry_products.js</span></h2>
+  <p>Four service products are recognised by name (no hardcoded IDs):</p>
+  <table>
+    <tr><th>Code</th><th>Label</th><th>Name match</th></tr>
+    <tr><td><code>wdf</code></td><td>Wash-Dry-Fold</td><td>"wash-dry-fold"</td></tr>
+    <tr><td><code>dwc</code></td><td>Dry/Wet Clean</td><td>"dry/wet clean"</td></tr>
+    <tr><td><code>shoe</code></td><td>Shoe Clean</td><td>"shoe clean"</td></tr>
+    <tr><td><code>press</code></td><td>Press</td><td>"press"</td></tr>
+  </table>
+  <p><code>dwc</code> and <code>shoe</code> are "long-turnaround" services (affect schedule thresholds). Matching uses a
+     <strong>leading word boundary</strong> so <code>"press"</code> never matches <code>"(express)"</code>. Lookups go
+     through live <code>pos.models</code> (active + <code>available_in_pos</code>), so price/attributes/variants always
+     reflect the real POS product.</p>
+
+  <h2 id="modal">4. New Order modal &amp; turnaround logic <span class="file">new_order_modal.js, product_screen_patch.js, pos_store.js</span></h2>
+  <p>A new order auto-flags <code>_needsLaundrySetup</code> (<code>PosStore.addNewOrder</code>); <code>ProductScreen</code>
+     detects it via a <code>useEffect</code> and opens the modal after navigation.</p>
+  <div class="why"><strong>Why this indirection:</strong> <code>addNewOrder</code> must stay <em>synchronous</em> — it's
+    called in 10+ places without <code>await</code>; making it async leaves <code>order.uuid</code> undefined when
+    navigation fires (<code>/product/undefined</code> crash). So we flag the order and let the screen react.</div>
+  <h3>The 4 steps</h3>
+  <ol>
+    <li><strong>Customer</strong> — New / Returning; live partner search (name, phone, mobile, street, city) with select or "edit".</li>
+    <li><strong>Services</strong> — pressing a pill calls <code>addLineToCurrentOrder</code>, adding the real product as an unconfigured line. Pills highlight while &ge;1 line of that product is on the order.</li>
+    <li><strong>Service Type</strong> — the 5 types; changing it resets the schedule.</li>
+    <li><strong>Schedule</strong> — quick date pills (Today / Tomorrow / +2 days) + AM/PM hour pills. Closed hours: 4–5 AM for all selectors; pickup &amp; delivery also block 2–3 AM.</li>
+  </ol>
+  <h3>Turnaround (TAT) — auto-decided by the schedule, not the cashier</h3>
+  <table>
+    <tr><th></th><th>Express threshold</th><th>Minimum lead time</th></tr>
+    <tr><td>Standard (WDF / Press)</td><td>&lt; 24h new, &lt; 18h returning</td><td>6 hrs</td></tr>
+    <tr><td>Long (Dry/Wet Clean, Shoe Clean)</td><td>&lt; 72h new, &lt; 48h returning</td><td>24 hrs</td></tr>
+  </table>
+  <p>The modal computes hours between now (or pickup) and claim/delivery, then labels the order <strong>Express</strong>
+     (below threshold) or <strong>Regular</strong>. Below the minimum lead time it shows a validation error and blocks
+     confirm. <strong>Skip for now</strong> still saves whatever was selected.</p>
+
+  <h2 id="banner">5. Order banner &amp; persistence <span class="file">product_screen_patch.js, laundry_storage.js, pos_store.js</span></h2>
+  <ul>
+    <li>A banner on the product screen shows customer type, services, service type, TAT and schedule; it <strong>flashes</strong> when blocked actions are attempted.</li>
+    <li>The <strong>Customer button is blocked</strong> until setup is done — <code>PosStore.selectPartner</code> returns false and dispatches a <code>laundry-flash-needed</code> event when setup was skipped.</li>
+    <li><strong>Adding products is blocked</strong> when setup was skipped (<code>addProductToOrder</code> flashes instead).</li>
+    <li>Details persist in <code>localStorage</code> keyed by order UUID (<code>laundry_storage.js</code>), rotating out the oldest beyond 100 entries.</li>
+    <li>On order delete/cancel, <code>PosStore.removeOrder</code> purges the stored entry so a reused UUID can't resurrect stale data.</li>
+  </ul>
+  <div class="why"><strong>Why localStorage:</strong> the <code>laundry_*</code> JS fields are not synced to the server,
+    so they vanish on POS reload / model rebuild. The store rehydrates them (and the modal pre-fills from it on "Change").</div>
+
+  <h2 id="lines">6. Cart lines: merge, quantity, ordering <span class="file">pos_store.js, pos_order_line_patch.js, order_display_patch.js</span></h2>
+  <ul>
+    <li><strong>Never merge lines</strong> — <code>tryMergeOrderline</code> forces <code>merge=false</code>, so every pill press / tap is its own line. Quantity is adjusted via the numpad.</li>
+    <li><strong>Quantity rules</strong> (<code>PosOrderline.setQuantity</code>): Dry/Wet Clean &amp; Shoe Clean are locked to <code>1</code> (0 still allowed so the line can be deleted); Wash-Dry-Fold is per-KG (editable); Press may exceed 1.</li>
+    <li><strong>Fixed display order</strong> (<code>OrderDisplay.comboSortedLines</code>): WDF → Press → Dry/Wet Clean → Shoe Clean → everything else. Used by both the cart and the receipt so they always match.</li>
+  </ul>
+
+  <h2 id="configurator">7. Configurator behavior &amp; crash guard <span class="file">order_summary_patch.js, product_configurator_popup_patch.js</span></h2>
+  <ul>
+    <li><strong>Tap a laundry line → configurator</strong>. Tapping opens a <em>fresh</em> configurator (productTemplate only); after confirming, the line is swapped for the configured one (no-merge keeps it separate), quantity preserved, and it's selected so the numpad can adjust qty/weight.</li>
+    <li><strong>Pre-fill on re-open</strong> — the configurator restores the line's existing attribute selection rather than a blank form.</li>
+    <li><strong>Turnaround is locked to the order's TAT</strong> — the configurator pre-selects the matching Express/Regular value and the template greys it out; a schedule change re-applies TAT to already-configured lines.</li>
+    <li><strong>Crash guard</strong> — <code>initAttributes()</code> pre-creates a state entry for every value's <code>attribute_id</code> before calling core.</li>
+  </ul>
+  <div class="why"><strong>Why the guard / fresh configurator:</strong> core's <code>onOrderlineLongPress</code> assumes a
+    fully-configured line and crashes on ours, so we always open a fresh one. Separately, core seeds
+    <code>state.attributes</code> by each attribute <em>line</em>'s id but then sets <code>.selected</code> keyed by each
+    <em>value</em>'s <code>attribute_id</code>; a product with a value whose attribute isn't a line key (malformed /
+    mis-migrated, e.g. after a DB restore) throws "Cannot set properties of undefined". Pre-seeding every key prevents the
+    whole popup from crashing.</div>
+
+  <h2 id="payment">8. Payment gates <span class="file">pos_store.js</span></h2>
+  <p>Both Pay buttons funnel through <code>PosStore.pay()</code>, which blocks with an <code>AlertDialog</code> when:</p>
+  <ul>
+    <li>any laundry line still has <strong>unselected options</strong> (lists the offending product names); or</li>
+    <li>a <strong>Wash-Dry-Fold minimum weight</strong> is unmet — at least <strong>6KG</strong> for a single WDF line, or <strong>4KG on each line</strong> when there is more than one WDF line.</li>
+  </ul>
+
+  <h2 id="receipt">9. Receipt customization <span class="file">order_receipt_patch.js, receipt_header_patch.js, order_line_patch.js, laundry_receipt.scss</span></h2>
+  <h3>Multi-copy thermal receipt</h3>
+  <p><code>computeLaundryCopies(order)</code> builds, for a laundry order:</p>
+  <ul>
+    <li>one <strong>"i/n TRANSACTION COPY"</strong> per main-service line (that line boxed), ordered WDF → Press → DWC → Shoe;</li>
+    <li>a <strong>SHOP COPY</strong> (always);</li>
+    <li>a <strong>CUSTOMER COPY</strong> only for Drop-off, Drop-off &amp; Delivery, Self-service.</li>
+  </ul>
+  <p>Non-laundry orders → a single normal receipt. Each copy is printed as its <strong>own print job</strong>
+     (<code>PosStore.printReceipt</code> loops with <code>setPrintOnlyCopy</code>) so the thermal printer cuts between copies.</p>
+  <h3>Header meta &amp; per-line formatting</h3>
+  <ul>
+    <li>Header block (<code>receipt_header_patch.js</code>): customer type, services, service type, TAT, pickup, and claim/delivery datetimes (12-hour). Resolves from order JS fields or localStorage for <strong>reprints</strong>.</li>
+    <li>Line formatting (<code>order_line_patch.js</code>): per-line attributes as name/value; "Turnaround (Press)" / "Turnaround Time" normalised to "Turnaround" and dropped from the printed line (shown once in the header); the duplicated "(Variant)" suffix stripped from the product name; WDF/Press get write-in count lines (Sorting / Folding / Press counts).</li>
+  </ul>
+
+  <h2 id="cash">10. Cash control (open / close) <span class="file">opening_control_popup_patch.js, closing_popup_patch.js</span></h2>
+  <p>Enforces itemized cash accountability on both ends of a session:</p>
+  <table>
+    <tr><th></th><th>Opening</th><th>Closing</th></tr>
+    <tr><td>Count source</td><td>itemized money-details only (manual input replaced by read-only display; pre-filled balance blanked)</td><td>itemized money-details only (manual input read-only; auto-fill button removed &amp; neutralised)</td></tr>
+    <tr><td>Variance rule</td><td>counted total must equal previous session's closing cash (carried forward) — zero variance</td><td>cash variance must be exactly zero (hard block)</td></tr>
+    <tr><td>Confirmation</td><td>accountability checkbox required</td><td>accountability checkbox required</td></tr>
+    <tr><td>Button gated</td><td>"Open Register"</td><td>"Close Register"</td></tr>
+  </table>
+  <p>When a config has no cash method, core behavior is preserved (nothing to count).</p>
+
+  <h2 id="demangle">11. Maintenance: Demangle &amp; Split Customer Names <span class="file">data/demangle_server_action.xml</span></h2>
+  <p>A one-time server action (Contacts list → Action menu), not part of the POS runtime — it just rides in this module as
+     the deploy vehicle. For each selected contact it keeps the part before the first <code>" | "</code> (undoing an
+     <code>"| ADDRESS | PHONE | TAGS"</code> mangling), then splits the recovered name by <code>"/"</code> and
+     <code>"-"</code> into name / street / street2.</p>
+  <div class="warn"><strong>Guard:</strong> it refuses to run while an active "Update Customer Name" automation exists
+    (Settings → Technical → Automation Rules) — otherwise names re-mangle on save. Delete/archive that automation first.</div>
+
+  <h2 id="decisions">12. Key design decisions (why)</h2>
+  <ul>
+    <li><strong><code>addNewOrder</code> stays synchronous</strong> — async breaks order-UUID routing.</li>
+    <li><strong>No <code>_load_pos_data_fields</code> on <code>pos.order</code></strong> — default <code>[]</code> loads all fields; overriding would drop lines/partner/amounts.</li>
+    <li><strong>Computed (not <code>related</code>) order fields</strong> — keep partner data one-way so POS sync can't overwrite the customer record.</li>
+    <li><strong>Name matching, not product IDs/tags</strong> — survives DB restores and re-seeding; no per-product configuration needed.</li>
+    <li><strong>localStorage for laundry meta</strong> — the JS-only fields aren't server-synced, so they must be rehydrated across reloads.</li>
+    <li><strong>Turnaround driven by schedule</strong> — the TAT is computed and locked, not a free cashier choice, so receipts and lines stay consistent.</li>
+  </ul>
+
+</main>
+<footer>
+  Laundry POS customizations reference — generated from the module source on branch <code>main</code>. Keep in sync when behavior changes.
+</footer>
+</body>
+</html>
