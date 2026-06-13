@@ -18,8 +18,25 @@ class PosOrder(models.Model):
             ('pickup_delivery', 'Pickup & Delivery'),
             ('locker', 'Locker'),
             ('self_service', 'Self-service'),
+            # Non-service categories — set via the list-view dropdown / legacy
+            # x_studio_category, NOT offered in the New Order modal.
+            ('payment', 'Payment'),
+            ('adjustment', 'Adjustment'),
         ],
         string='Service Type',
+    )
+    # List-view-only dropdown limited to Payment/Adjustment. Cashiers tag
+    # non-service orders here; it reads/writes laundry_service_type so the 5
+    # modal-driven service types can never be set by hand from the list.
+    laundry_manual_category = fields.Selection(
+        selection=[
+            ('payment', 'Payment'),
+            ('adjustment', 'Adjustment'),
+        ],
+        string='Payment / Adjustment',
+        compute='_compute_laundry_manual_category',
+        inverse='_inverse_laundry_manual_category',
+        store=False,
     )
 
     # --- New Order details, set from the POS modal submit (see
@@ -60,11 +77,33 @@ class PosOrder(models.Model):
 
     @api.depends('laundry_delivery_datetime', 'laundry_claim_datetime')
     def _compute_laundry_due_datetime(self):
+        # Legacy fallback to the ex-Studio field for old records. Guarded by a
+        # field-existence check so the module stays installable without Studio;
+        # x_studio_due_datetime is intentionally NOT in @api.depends (it may not
+        # exist, and legacy values don't change).
+        has_legacy = 'x_studio_due_datetime' in self._fields
         for order in self:
-            # Delivery time wins (delivery-type services); else the claim time.
+            legacy = order.x_studio_due_datetime if has_legacy else False
+            # Delivery time wins (delivery-type services); else claim; else legacy.
             order.laundry_due_datetime = (
-                order.laundry_delivery_datetime or order.laundry_claim_datetime
+                order.laundry_delivery_datetime
+                or order.laundry_claim_datetime
+                or legacy
             )
+
+    @api.depends('laundry_service_type')
+    def _compute_laundry_manual_category(self):
+        for order in self:
+            order.laundry_manual_category = (
+                order.laundry_service_type
+                if order.laundry_service_type in ('payment', 'adjustment')
+                else False
+            )
+
+    def _inverse_laundry_manual_category(self):
+        for order in self:
+            if order.laundry_manual_category:
+                order.laundry_service_type = order.laundry_manual_category
 
     @api.depends('partner_id.phone')
     def _compute_laundry_customer_phone(self):
