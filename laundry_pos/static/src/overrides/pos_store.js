@@ -117,4 +117,22 @@ patch(PosStore.prototype, {
         }
         return super.pay(...arguments);
     },
+
+    /**
+     * Guard the variant configurator against malformed product data (e.g. after
+     * a DB restore): a generated attribute combination can contain an
+     * `undefined` value when a referenced product.template.attribute.value
+     * record isn't loaded in POS. Core's doHaveConflictWith then crashes on
+     * `value.id` / `v.id`, taking down the whole ProductConfiguratorPopup.
+     * Treat any undefined value as a conflict (so that combination is skipped
+     * and the loop lands on a fully-valid one, which also keeps the follow-up
+     * forEach from dereferencing the undefined value) and strip undefined
+     * entries before delegating to core.
+     */
+    doHaveConflictWith(value, selectedValues = []) {
+        if (!value) {
+            return true;
+        }
+        return super.doHaveConflictWith(value, selectedValues.filter(Boolean));
+    },
 });
