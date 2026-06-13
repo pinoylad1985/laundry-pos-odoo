@@ -106,15 +106,12 @@
                                         t-on-click="() => this.removeService(svc.code)">−</button>
                                 <span class="fw-bold text-center" style="min-width:1.75rem;"
                                       t-esc="serviceCount(svc.code)"/>
-                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3"
+                                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3"
                                         t-on-click="() => this.addService(svc.code)">+</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <p class="text-muted small mt-2 mb-0">
-                    Use + / − to add or remove items — choose variants/options on each line in the cart afterwards.
-                </p>
             </section>
 
             <!-- ④ Schedule + Turnaround (appears after items added, not for self_service) -->
