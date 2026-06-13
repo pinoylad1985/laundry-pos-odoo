@@ -166,6 +166,27 @@ export class NewOrderModal extends Component {
         this.state.rev++; // recompute pill highlight + turnaround
     }
 
+    // Remove the most recently added line of this service (the "−" button).
+    // Lines never merge, so one line == one press == one count.
+    removeService(code) {
+        const lines = this._orderLaundryLines().filter(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === code
+        );
+        if (!lines.length) return;
+        const line = lines[lines.length - 1];
+        const order = this.pos.getOrder();
+        if (typeof order?.removeOrderline === "function") order.removeOrderline(line);
+        else if (typeof line?.delete === "function") line.delete();
+        this.state.rev++;
+    }
+
+    // How many lines of this service are on the order (drives the stepper count).
+    serviceCount(code) {
+        return this._orderLaundryLines().filter(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === code
+        ).length;
+    }
+
     // Laundry lines currently on the order (rev makes this reactive to presses).
     _orderLaundryLines() {
         void this.state.rev; // reactive dependency

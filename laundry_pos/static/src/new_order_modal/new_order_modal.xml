@@ -97,15 +97,23 @@
                 <p class="fw-semibold text-muted mb-2">3. Services</p>
                 <div class="row g-2">
                     <div t-foreach="services" t-as="svc" t-key="svc.code" class="col-6">
-                        <button class="btn w-100 py-3 fs-6"
-                                t-att-class="isServiceSelected(svc.code) ? 'btn-primary' : 'btn-outline-secondary'"
-                                t-on-click="() => this.addService(svc.code)">
-                            <t t-esc="svc.label"/>
-                        </button>
+                        <div class="d-flex align-items-center justify-content-between gap-2 p-2 border rounded h-100"
+                             t-att-class="serviceCount(svc.code) ? 'border-primary bg-primary bg-opacity-10' : 'border-secondary-subtle'">
+                            <span class="fw-semibold fs-6 text-truncate" t-esc="svc.label"/>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3"
+                                        t-att-disabled="!serviceCount(svc.code)"
+                                        t-on-click="() => this.removeService(svc.code)">−</button>
+                                <span class="fw-bold text-center" style="min-width:1.75rem;"
+                                      t-esc="serviceCount(svc.code)"/>
+                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3"
+                                        t-on-click="() => this.addService(svc.code)">+</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <p class="text-muted small mt-2 mb-0">
-                    Tap to add to the order — choose variants/options on the line in the cart afterwards.
+                    Use + / − to add or remove items — choose variants/options on each line in the cart afterwards.
                 </p>
             </section>
 
