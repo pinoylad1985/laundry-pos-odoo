@@ -2,19 +2,21 @@
 
 ## What This Project Is
 A custom Odoo 19 Enterprise module (`laundry_pos`) for **laundryx** that adds a laundry-specific
-workflow to the Point of Sale (POS). It is deployed to **two separate hosts** (see below).
+workflow to the Point of Sale (POS). It is self-hosted on a single VPS via **Docker Compose** (production + staging — see below).
 
 > **Full feature/technical reference:** [docs/laundry-pos-customizations.html](docs/laundry-pos-customizations.html)
 > documents every customization in detail. End-user guide: [docs/laundry-pos-module-guide.html](docs/laundry-pos-module-guide.html).
 > Keep those in sync when behavior changes.
 
-## Deployment (two hosts, different processes — do NOT conflate)
-- **Cloudpepper free tier** (`laundryx.app`, droplet `139.59.114.14`): no dashboard Git/Addons tab; deploys
-  done server-side over SSH. SOP: [docs/cloudpepper-free-tier-sop.html](docs/cloudpepper-free-tier-sop.html).
-- **OEC.SH** (droplet `152.42.176.183`, Dockerised Odoo 19): connect the repo as "Your ERP Code" → environment
-  **Deploy**. SOP: [docs/oecsh-deploy-sop.html](docs/oecsh-deploy-sop.html).
+## Deployment
+Self-hosted on a single VPS via **Docker Compose** (Odoo 19 + Postgres + Caddy reverse proxy with HTTPS),
+fronted by Cloudflare.
+- **Production** — `main` branch → `odoo.laundryx.app` (database `laundryx`).
+- **Staging** — `staging` branch → `staging.laundryx.app` (database `laundryx_staging`).
 
-In both cases: after the code is on the server, in Odoo do **Apps → Update Apps List → Install/Upgrade Laundry POS**.
+Promotion flow: work → push to `staging` → it deploys to staging → test → open a PR to merge `staging` → `main`
+→ run the production deploy (backs up first, pulls `main`, restarts, upgrades the module). After a deploy, in
+Odoo: **Apps → Update Apps List → Upgrade Laundry POS**.
 
 - **GitHub repo:** https://github.com/pinoylad1985/laundry-pos-odoo
 - **Odoo version:** 19 (Enterprise) · **Python:** 3.13 · **Frontend:** OWL 2
