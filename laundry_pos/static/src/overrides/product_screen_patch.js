@@ -4,6 +4,8 @@ import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
+import { ActionHubModal } from "@laundry_pos/action_hub/action_hub";
+import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
     laundryCodeForProduct,
@@ -70,19 +72,66 @@ patch(ProductScreen.prototype, {
             () => [this.pos.getOrder()?.uuid]
         );
 
-        // Listen for flash signal fired by PosStore when Customer button is blocked
+        // Listen for flash signal fired by PosStore when Customer button is blocked,
+        // and for the action-hub signals (auto-open flag + navbar buttons).
         onMounted(() => {
             this._laundryFlashHandler = () => this._flashBanner();
             document.addEventListener("laundry-flash-needed", this._laundryFlashHandler);
+
+            // Navbar / programmatic triggers
+            this._laundryHubHandler = () => this._openActionHub();
+            document.addEventListener("laundry-open-hub", this._laundryHubHandler);
+            this._laundryActionHandler = (ev) => this._runLaundryAction(ev.detail?.action);
+            document.addEventListener("laundry-action", this._laundryActionHandler);
+
+            // Auto-open on register open / unlock (PosStore sets the flag)
+            if (this.pos._pendingActionHub) {
+                this.pos._pendingActionHub = false;
+                this._openActionHub();
+            }
         });
         onWillUnmount(() => {
             document.removeEventListener("laundry-flash-needed", this._laundryFlashHandler);
+            document.removeEventListener("laundry-open-hub", this._laundryHubHandler);
+            document.removeEventListener("laundry-action", this._laundryActionHandler);
         });
     },
 
     _flashBanner() {
         this.laundryState.flash = true;
         setTimeout(() => { this.laundryState.flash = false; }, 600);
+    },
+
+    // ── Action hub (NEW ORDER / SETTLE / LIST) ────────────────────────────
+
+    async _openActionHub() {
+        if (this._actionHubOpen) return; // guard against double-open
+        this._actionHubOpen = true;
+        let result;
+        try {
+            result = await makeAwaitable(this.dialog, ActionHubModal, {});
+        } finally {
+            this._actionHubOpen = false;
+        }
+        if (result?.action) await this._runLaundryAction(result.action);
+    },
+
+    async _runLaundryAction(action) {
+        if (action === "new_order") {
+            // Fresh laundry order — addNewOrder flags _needsLaundrySetup, which the
+            // uuid useEffect above turns into the New Order setup modal.
+            this.pos.addNewOrder();
+            return;
+        }
+        if (action === "settle") return this._laundryComingSoon("Settle");
+        if (action === "list")   return this._laundryComingSoon("List");
+    },
+
+    _laundryComingSoon(name) {
+        this.dialog.add(AlertDialog, {
+            title: name,
+            body: `${name} is coming in the next phase.`,
+        });
     },
 
     _getLaundryServiceLabel() {

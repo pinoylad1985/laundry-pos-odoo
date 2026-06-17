@@ -24,6 +24,13 @@ patch(OpeningControlPopup.prototype, {
         }
     },
 
+    // After the register is opened, pop the action hub (NEW ORDER / SETTLE / LIST).
+    // ProductScreen is already mounted behind this popup, so we signal it directly.
+    async confirm() {
+        await super.confirm(...arguments);
+        document.dispatchEvent(new CustomEvent("laundry-open-hub"));
+    },
+
     // Expected opening = previous session's closing counted cash (carried forward).
     get expectedOpening() {
         return this.pos.session.cash_register_balance_start || 0;

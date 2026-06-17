@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
+
+        <!-- Banner buttons, beside the product search (desktop only) -->
+        <xpath expr="//Input" position="before">
+            <div t-if="!ui.isSmall and this.pos.router.state.current === 'ProductScreen'"
+                 class="laundry-hub-buttons d-flex align-items-center gap-1 me-2">
+                <button class="btn btn-primary btn-lg lh-lg"
+                        t-on-click="() => this.laundryAction('new_order')">New Order</button>
+                <button class="btn btn-light btn-lg lh-lg"
+                        t-on-click="() => this.laundryAction('settle')">Settle</button>
+                <button class="btn btn-light btn-lg lh-lg"
+                        t-on-click="() => this.laundryAction('list')">List</button>
+            </div>
+        </xpath>
+
+        <!-- Hamburger items, alongside Cash In/Out and Close Register -->
+        <xpath expr="//div[hasclass('pos-burger-menu-items')]/DropdownItem[1]" position="before">
+            <DropdownItem onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
+            <DropdownItem onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
+            <DropdownItem onSelected="() => this.laundryAction('list')">List</DropdownItem>
+        </xpath>
+
+    </t>
+</templates>
