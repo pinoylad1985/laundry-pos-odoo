@@ -1,0 +1,9 @@
+// Dropdown of matching customers under the LIST customer search bar.
+.laundry-customer-results {
+    position: absolute;
+    z-index: 1050;
+    left: 0.5rem;
+    right: 0.5rem;
+    max-height: 40vh;
+    overflow-y: auto;
+}

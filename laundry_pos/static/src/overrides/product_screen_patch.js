@@ -6,7 +6,6 @@ import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { ActionHubModal } from "@laundry_pos/action_hub/action_hub";
 import { SettleModal } from "@laundry_pos/settle_modal/settle_modal";
-import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
     laundryCodeForProduct,
@@ -129,18 +128,11 @@ patch(ProductScreen.prototype, {
             return;
         }
         if (action === "settle") return this._openSettleModal();
-        if (action === "list")   return this._laundryComingSoon("List");
+        if (action === "list")   return this.pos.navigate("TicketScreen");
     },
 
     _openSettleModal() {
         this.dialog.add(SettleModal, {});
-    },
-
-    _laundryComingSoon(name) {
-        this.dialog.add(AlertDialog, {
-            title: name,
-            body: `${name} is coming in the next phase.`,
-        });
     },
 
     _getLaundryServiceLabel() {

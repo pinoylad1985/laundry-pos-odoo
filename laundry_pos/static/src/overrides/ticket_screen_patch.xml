@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.TicketScreen" t-inherit-mode="extension">
+
+        <!-- Customer search bar, above the "Search Orders" bar -->
+        <xpath expr="//div[hasclass('controls')]" position="before">
+            <div class="laundry-list-customer-search p-2 border-bottom bg-view position-relative"
+                 t-att-class="{'pe-none opacity-50': laundryState.mode === 'order'}">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fa fa-user" aria-hidden="true"/></span>
+                    <input type="text" class="form-control form-control-lg"
+                           placeholder="Search orders by customer (name, phone, address)..."
+                           t-att-value="laundryState.customerQuery"
+                           t-on-input="onLaundryCustomerInput"/>
+                    <button t-if="laundryState.selectedCustomer" class="btn btn-outline-secondary"
+                            t-on-click="() => this.laundryClearCustomer()" title="Clear customer">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </div>
+                <div t-if="laundryState.showCustomerResults and laundryCustomerResults.length"
+                     class="laundry-customer-results bg-view border rounded shadow-sm">
+                    <t t-foreach="laundryCustomerResults" t-as="lp" t-key="lp.id">
+                        <div class="d-flex align-items-center justify-content-between border-bottom p-2 gap-2">
+                            <div class="text-truncate">
+                                <span class="fw-semibold"><t t-esc="lp.name"/></span>
+                                <span class="small text-muted ms-2" t-if="lp.phone"><t t-esc="lp.phone"/></span>
+                            </div>
+                            <button class="btn btn-primary btn-sm text-nowrap"
+                                    t-on-click="() => this.laundrySelectCustomer(lp)">All Orders</button>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- Grey the order search bar while a customer filter is active -->
+        <xpath expr="//SearchBar" position="attributes">
+            <attribute name="t-att-class">{'pe-none opacity-50': laundryState.mode === 'customer'}</attribute>
+        </xpath>
+
+    </t>
+</templates>
