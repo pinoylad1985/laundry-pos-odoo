@@ -33,9 +33,10 @@
             </div>
         </xpath>
 
-        <!-- Grey the order search bar while a customer filter is active -->
-        <xpath expr="//SearchBar" position="attributes">
-            <attribute name="class">laundryState.mode === 'customer' ? 'pe-none opacity-50' : ''</attribute>
+        <!-- Grey the order search bar while a customer filter is active: a marker
+             class on the controls row; CSS (ticket_screen_patch.scss) dims the SearchBar. -->
+        <xpath expr="//div[hasclass('controls')]" position="attributes">
+            <attribute name="t-att-class">{'laundry-order-search-disabled': laundryState.mode === 'customer'}</attribute>
         </xpath>
 
     </t>

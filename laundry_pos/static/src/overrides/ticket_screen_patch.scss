@@ -7,3 +7,10 @@
     max-height: 40vh;
     overflow-y: auto;
 }
+
+// Mutual exclusivity: dim + disable the order search bar while a customer
+// filter is active (marker class is on the controls row).
+.laundry-order-search-disabled .pos-search-bar {
+    opacity: 0.5;
+    pointer-events: none;
+}
