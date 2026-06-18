@@ -16,13 +16,6 @@
                     <span class="fs-4 fw-bold mt-2">SETTLE</span>
                     <span class="small opacity-75">Settle a customer's orders, invoices or due</span>
                 </button>
-
-                <button class="btn btn-outline-primary d-flex flex-column align-items-center justify-content-center py-4"
-                        t-on-click="() => this.choose('list')">
-                    <span style="font-size:2rem;line-height:1;">📋</span>
-                    <span class="fs-4 fw-bold mt-2">LIST</span>
-                    <span class="small opacity-75">Look up orders by customer</span>
-                </button>
             </div>
 
             <t t-set-slot="footer">

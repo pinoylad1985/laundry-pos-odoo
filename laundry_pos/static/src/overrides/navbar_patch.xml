@@ -12,7 +12,7 @@
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('settle')">Settle</button>
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
-                        t-on-click="() => this.laundryAction('list')">List</button>
+                        t-on-click="() => this.pos.navigate('TicketScreen')">Orders</button>
             </div>
             <!-- Mobile: ▾ dropdown, same classes/size as the order-tabs overflow button -->
             <Dropdown t-if="ui.isSmall and this.pos.router.state.current === 'ProductScreen'">
@@ -20,7 +20,6 @@
                 <t t-set-slot="content">
                     <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
                     <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
-                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
                 </t>
             </Dropdown>
         </xpath>
@@ -29,12 +28,17 @@
         <xpath expr="//div[hasclass('pos-burger-menu-items')]/DropdownItem[1]" position="before">
             <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
             <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
-            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
         </xpath>
 
         <!-- Hide the top-bar barcode scanner button on mobile; it stays in the ☰ menu -->
         <xpath expr="//button[@t-on-click='onClickScan']" position="attributes">
             <attribute name="t-if">isBarcodeScannerSupported() and ['ProductScreen', 'TicketScreen'].includes(this.pos.router.state.current) and !pos.config.module_pos_restaurant and !ui.isSmall</attribute>
+        </xpath>
+
+        <!-- "Orders" now lives in the banner on desktop, so hide the left-header
+             Orders button there (it stays on mobile as the book icon). -->
+        <xpath expr="//button[hasclass('orders-button')]" position="attributes">
+            <attribute name="t-if">ui.isSmall</attribute>
         </xpath>
 
     </t>

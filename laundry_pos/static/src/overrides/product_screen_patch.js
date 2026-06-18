@@ -128,7 +128,6 @@ patch(ProductScreen.prototype, {
             return;
         }
         if (action === "settle") return this._openSettleModal();
-        if (action === "list")   return this.pos.navigate("TicketScreen");
     },
 
     _openSettleModal() {
