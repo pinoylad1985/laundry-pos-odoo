@@ -84,10 +84,14 @@ patch(ProductScreen.prototype, {
             this._laundryActionHandler = (ev) => this._runLaundryAction(ev.detail?.action);
             document.addEventListener("laundry-action", this._laundryActionHandler);
 
-            // Auto-open on register open / unlock (PosStore sets the flag)
-            if (this.pos._pendingActionHub) {
-                this.pos._pendingActionHub = false;
-                this._openActionHub();
+            // Auto-open on UNLOCK: we just passed through the lock/login screen and
+            // the register is already open. (Register OPEN is handled separately by
+            // the opening-control popup dispatching "laundry-open-hub".)
+            if (this.pos._cameFromLock) {
+                this.pos._cameFromLock = false;
+                if (this.pos.session?.state === "opened") {
+                    this._openActionHub();
+                }
             }
         });
         onWillUnmount(() => {
@@ -105,7 +109,6 @@ patch(ProductScreen.prototype, {
     // ── Action hub (NEW ORDER / SETTLE / LIST) ────────────────────────────
 
     async _openActionHub() {
-        this.pos._pendingActionHub = false; // consume any pending auto-open flag
         if (this._actionHubOpen) return; // guard against double-open
         this._actionHubOpen = true;
         let result;
