@@ -2,24 +2,39 @@
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
 
-        <!-- Banner buttons, beside the product search (desktop only) -->
+        <!-- Hub buttons, beside the product search -->
         <xpath expr="//Input" position="before">
+            <!-- Desktop: three inline buttons -->
             <div t-if="!ui.isSmall and this.pos.router.state.current === 'ProductScreen'"
                  class="laundry-hub-buttons d-flex align-items-center gap-1 me-2">
-                <button class="btn btn-primary btn-lg lh-lg"
+                <button class="btn btn-primary btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('new_order')">New Order</button>
-                <button class="btn btn-light btn-lg lh-lg"
+                <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('settle')">Settle</button>
-                <button class="btn btn-light btn-lg lh-lg"
+                <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('list')">List</button>
+            </div>
+            <!-- Mobile: collapsed into a dropdown (▾), like the order tabs -->
+            <div t-if="ui.isSmall and this.pos.router.state.current === 'ProductScreen'"
+                 class="laundry-hub-buttons-mobile me-1">
+                <Dropdown>
+                    <button class="btn btn-primary btn-lg lh-lg text-nowrap">
+                        <i class="fa fa-plus"/> <i class="fa fa-caret-down"/>
+                    </button>
+                    <t t-set-slot="content">
+                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
+                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
+                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
+                    </t>
+                </Dropdown>
             </div>
         </xpath>
 
-        <!-- Hamburger items, alongside Cash In/Out and Close Register -->
+        <!-- Hamburger items (pastel green), alongside Cash In/Out and Close Register -->
         <xpath expr="//div[hasclass('pos-burger-menu-items')]/DropdownItem[1]" position="before">
-            <DropdownItem onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
-            <DropdownItem onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
-            <DropdownItem onSelected="() => this.laundryAction('list')">List</DropdownItem>
+            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
+            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
+            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
         </xpath>
 
     </t>

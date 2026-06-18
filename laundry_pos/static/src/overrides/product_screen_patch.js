@@ -105,6 +105,7 @@ patch(ProductScreen.prototype, {
     // ── Action hub (NEW ORDER / SETTLE / LIST) ────────────────────────────
 
     async _openActionHub() {
+        this.pos._pendingActionHub = false; // consume any pending auto-open flag
         if (this._actionHubOpen) return; // guard against double-open
         this._actionHubOpen = true;
         let result;
