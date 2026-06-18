@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Grey out "All Orders" (mobile + desktop) in the normal customer picker -->
+    <t t-inherit="point_of_sale.PartnerLine" t-inherit-mode="extension">
+        <xpath expr="(//DropdownItem[contains(@onSelected, 'onClickOrders')])[1]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+        <xpath expr="(//DropdownItem[contains(@onSelected, 'onClickOrders')])[2]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+    </t>
+
+    <!-- Grey out the settlement options (pos_settle_due's CustomDropdownItems) -->
+    <t t-inherit="CustomDropdownItems" t-inherit-mode="extension">
+        <xpath expr="(//DropdownItem)[1]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+        <xpath expr="(//DropdownItem)[2]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+        <xpath expr="(//DropdownItem)[3]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+        <xpath expr="(//DropdownItem)[4]" position="attributes">
+            <attribute name="class">'laundry-action-disabled'</attribute>
+        </xpath>
+    </t>
+
+</templates>

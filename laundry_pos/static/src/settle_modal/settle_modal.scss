@@ -1,0 +1,5 @@
+// Disabled-looking settlement / "All Orders" items in the NORMAL customer picker.
+// They stay clickable so tapping shows the "Use Settle / List function" hint.
+.laundry-action-disabled {
+    opacity: 0.5;
+}

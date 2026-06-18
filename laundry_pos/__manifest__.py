@@ -4,7 +4,7 @@
     'author': 'laundryx',
     'summary': 'Custom laundry service workflow for Point of Sale',
     'category': 'Point of Sale',
-    'depends': ['point_of_sale'],
+    'depends': ['point_of_sale', 'pos_settle_due'],
     'data': [
         'security/ir.model.access.csv',
         'data/laundry_service_type_data.xml',
