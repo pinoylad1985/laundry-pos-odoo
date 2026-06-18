@@ -5,6 +5,7 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { ActionHubModal } from "@laundry_pos/action_hub/action_hub";
+import { SettleModal } from "@laundry_pos/settle_modal/settle_modal";
 import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
@@ -127,8 +128,12 @@ patch(ProductScreen.prototype, {
             this.pos.addNewOrder();
             return;
         }
-        if (action === "settle") return this._laundryComingSoon("Settle");
+        if (action === "settle") return this._openSettleModal();
         if (action === "list")   return this._laundryComingSoon("List");
+    },
+
+    _openSettleModal() {
+        this.dialog.add(SettleModal, {});
     },
 
     _laundryComingSoon(name) {
