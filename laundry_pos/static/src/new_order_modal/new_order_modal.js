@@ -157,8 +157,7 @@ export class NewOrderModal extends Component {
                 s(p.street).includes(query) ||
                 s(p.street2).includes(query) ||
                 s(p.city).includes(query)
-            )
-            .slice(0, 15);
+            );
     }
 
     get showNoResults() {

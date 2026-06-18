@@ -68,6 +68,10 @@
                         t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), false)">
                     Set Up Now
                 </button>
+                <button class="btn btn-outline-danger btn-lg mt-2"
+                        t-on-click="() => this._laundryCancelOrder()">
+                    Cancel Order
+                </button>
             </div>
         </xpath>
     </t>

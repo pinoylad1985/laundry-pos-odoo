@@ -73,8 +73,7 @@ patch(TicketScreen.prototype, {
                     s(p.mobile).includes(q) ||
                     s(p.parent_name).includes(q) ||
                     s(p.pos_contact_address).includes(q)
-            )
-            .slice(0, 8);
+            );
     },
 
     laundrySelectCustomer(partner) {
