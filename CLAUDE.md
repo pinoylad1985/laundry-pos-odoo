@@ -99,3 +99,36 @@ laundry_pos/
 - Cash control: opening/closing popups under `@point_of_sale/app/components/popups/`
 - Asset bundle: `point_of_sale._assets_pos` · Models loaded via `_load_pos_data_fields` + `_load_pos_data_read`
 - OWL: `patch(Class.prototype, {...})`, `useEffect(effect, () => [deps])`, `super.method(...arguments)`
+
+## POS UI Vocabulary (shared glossary)
+Use these official Odoo component names so we don't get confused.
+
+**Screens** (full "pages", registered in `pos_pages`):
+| Name | Meaning |
+|------|---------|
+| `ProductScreen` | Main order-taking screen (product grid + cart). Cashiers live here. |
+| `PaymentScreen` | Taking payment for the current order. |
+| `ReceiptScreen` | Receipt shown after payment. |
+| `TicketScreen` | The **Orders** screen — search/browse past & open orders. |
+| `LoginScreen` | Lock / cashier-login screen (lock→unlock passes through here). |
+| `SaverScreen` | Idle screensaver. |
+
+**Navbar** = the whole top strip (`point_of_sale.Navbar`, file `navbar_patch.xml`). Holds: `Register`
+button, `orders-button` (Orders), the ＋ new-order, `OrderTabs` (the `73001…` tabs), product-search
+`Input`, barcode button, `CashierName` (avatar), the lock, and the ☰ hamburger (`Dropdown` — Cash
+In/Out, Close Register…). *Our additions:* the **hub buttons** (New Order / Settle / Orders).
+
+**Product screen parts:** `products`/product grid (cards) · **category buttons** (the colored pills =
+product categories) · `OrderSummary` = the **cart**, made of `Orderline`s · **control buttons**
+(bottom-left: Customer, Note…) · `Numpad` + `Actionpad` (number pad + **Pay**) · *our* **setup banner**
+(the green/red "complete New Order details" strip — NOT the navbar).
+
+**Orders screen (TicketScreen) parts:** `SearchBar` = the "Search Orders" bar · *our* **customer search
+bar** above it · the **order list** (rows) · the **detail/refund pane** on the right.
+
+**Popups / Modals** (float over a screen): `PartnerList` = the "Choose customer" picker · **Product
+Configurator** · **Opening/Closing control** (cash-count popups) · *our* **New Order modal**,
+**Action hub**, **Settle modal**.
+
+Rules of thumb: **"screen"** = a full page · **"navbar"** = top strip (vs the lower **"setup banner"**) ·
+**"popup"/"modal"** = floats on top.

@@ -35,10 +35,13 @@
             <attribute name="t-if">isBarcodeScannerSupported() and ['ProductScreen', 'TicketScreen'].includes(this.pos.router.state.current) and !pos.config.module_pos_restaurant and !ui.isSmall</attribute>
         </xpath>
 
-        <!-- "Orders" now lives in the banner on desktop, so hide the left-header
-             Orders button there (it stays on mobile as the book icon). -->
+        <!-- Desktop: "Orders" lives in the banner, so hide the left-header Orders
+             button there. Mobile: keep it (book icon) and move it before the product search. -->
         <xpath expr="//button[hasclass('orders-button')]" position="attributes">
             <attribute name="t-if">ui.isSmall</attribute>
+        </xpath>
+        <xpath expr="//Input" position="before">
+            <xpath expr="//button[hasclass('orders-button')]" position="move"/>
         </xpath>
 
     </t>
