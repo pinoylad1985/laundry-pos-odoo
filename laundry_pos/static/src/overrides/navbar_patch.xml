@@ -14,20 +14,15 @@
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('list')">List</button>
             </div>
-            <!-- Mobile: collapsed into a plain ▾ dropdown, like the order tabs -->
-            <div t-if="ui.isSmall and this.pos.router.state.current === 'ProductScreen'"
-                 class="laundry-hub-buttons-mobile me-1">
-                <Dropdown>
-                    <button class="btn btn-light btn-lg lh-lg">
-                        <i class="fa fa-caret-down"/>
-                    </button>
-                    <t t-set-slot="content">
-                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
-                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
-                        <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
-                    </t>
-                </Dropdown>
-            </div>
+            <!-- Mobile: collapsed into a ▾ dropdown sized exactly like the order-tabs overflow button -->
+            <Dropdown t-if="ui.isSmall and this.pos.router.state.current === 'ProductScreen'">
+                <button class="btn btn-secondary mx-1 fa fa-caret-down my-2"/>
+                <t t-set-slot="content">
+                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
+                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
+                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('list')">List</DropdownItem>
+                </t>
+            </Dropdown>
         </xpath>
 
         <!-- Hamburger items (pastel green), alongside Cash In/Out and Close Register -->
