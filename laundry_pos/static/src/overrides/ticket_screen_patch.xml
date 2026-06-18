@@ -35,7 +35,7 @@
 
         <!-- Grey the order search bar while a customer filter is active -->
         <xpath expr="//SearchBar" position="attributes">
-            <attribute name="t-att-class">{'pe-none opacity-50': laundryState.mode === 'customer'}</attribute>
+            <attribute name="class">laundryState.mode === 'customer' ? 'pe-none opacity-50' : ''</attribute>
         </xpath>
 
     </t>
