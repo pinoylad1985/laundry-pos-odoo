@@ -50,5 +50,25 @@
 
             </t>
         </xpath>
+
+        <!-- Disable the whole product screen until the New Order setup is complete.
+             Covers only the product-screen (not the navbar), so Settle / Orders /
+             cash control stay reachable. -->
+        <xpath expr="//div[hasclass('product-screen')]" position="attributes">
+            <attribute name="class">product-screen d-flex h-100 position-relative</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('product-screen')]" position="inside">
+            <div t-if="laundryState and laundryState.mode !== 'submitted'"
+                 class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-center"
+                 style="background:rgba(255,255,255,0.92);z-index:20;">
+                <i class="fa fa-lock fa-3x text-muted mb-3"/>
+                <h4 class="fw-bold">Complete the New Order setup first</h4>
+                <p class="text-muted px-3">Add the customer, services, service type and schedule before taking the order.</p>
+                <button class="btn btn-primary btn-lg"
+                        t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), false)">
+                    Set Up Now
+                </button>
+            </div>
+        </xpath>
     </t>
 </templates>

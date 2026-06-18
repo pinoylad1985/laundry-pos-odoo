@@ -19,6 +19,7 @@ patch(TicketScreen.prototype, {
             selectedCustomer: null,
             showCustomerResults: false,
             mode: "",
+            rev: 0,
         });
     },
 
@@ -30,7 +31,35 @@ patch(TicketScreen.prototype, {
         this.laundryState.mode = val ? "customer" : "";
     },
 
+    // Press Enter → also search the server (POS pre-loads only a subset of customers).
+    onLaundryCustomerKeydown(ev) {
+        if (ev.key === "Enter") {
+            this._serverSearchCustomers();
+        }
+    },
+
+    async _serverSearchCustomers() {
+        const q = this.laundryState.customerQuery.trim();
+        if (!q || this._searching) {
+            return;
+        }
+        this._searching = true;
+        try {
+            const fields = ["complete_name", "phone_mobile_search", "barcode", "street", "city", "email"];
+            const domain = [...Array(fields.length - 1).fill("|"), ...fields.map((f) => [f, "ilike", q])];
+            await this.pos.data.callRelated("res.partner", "get_new_partner", [
+                this.pos.config.id,
+                domain,
+                0,
+            ]);
+        } finally {
+            this._searching = false;
+            this.laundryState.rev++;
+        }
+    },
+
     get laundryCustomerResults() {
+        void this.laundryState.rev; // re-run after a server search loads more customers
         const q = this.laundryState.customerQuery.trim().toLowerCase();
         if (!q) {
             return [];

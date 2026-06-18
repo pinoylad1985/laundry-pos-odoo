@@ -4,7 +4,6 @@ import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
-import { ActionHubModal } from "@laundry_pos/action_hub/action_hub";
 import { SettleModal } from "@laundry_pos/settle_modal/settle_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
@@ -72,31 +71,17 @@ patch(ProductScreen.prototype, {
             () => [this.pos.getOrder()?.uuid]
         );
 
-        // Listen for flash signal fired by PosStore when Customer button is blocked,
-        // and for the action-hub signals (auto-open flag + navbar buttons).
+        // Listen for the flash signal (PosStore blocks the Customer button) and for
+        // the navbar Settle button.
         onMounted(() => {
             this._laundryFlashHandler = () => this._flashBanner();
             document.addEventListener("laundry-flash-needed", this._laundryFlashHandler);
 
-            // Navbar / programmatic triggers
-            this._laundryHubHandler = () => this._openActionHub();
-            document.addEventListener("laundry-open-hub", this._laundryHubHandler);
             this._laundryActionHandler = (ev) => this._runLaundryAction(ev.detail?.action);
             document.addEventListener("laundry-action", this._laundryActionHandler);
-
-            // Auto-open on UNLOCK: we just passed through the lock/login screen and
-            // the register is already open. (Register OPEN is handled separately by
-            // the opening-control popup dispatching "laundry-open-hub".)
-            if (this.pos._cameFromLock) {
-                this.pos._cameFromLock = false;
-                if (this.pos.session?.state === "opened") {
-                    this._openActionHub();
-                }
-            }
         });
         onWillUnmount(() => {
             document.removeEventListener("laundry-flash-needed", this._laundryFlashHandler);
-            document.removeEventListener("laundry-open-hub", this._laundryHubHandler);
             document.removeEventListener("laundry-action", this._laundryActionHandler);
         });
     },
@@ -106,27 +91,9 @@ patch(ProductScreen.prototype, {
         setTimeout(() => { this.laundryState.flash = false; }, 600);
     },
 
-    // ── Action hub (NEW ORDER / SETTLE / LIST) ────────────────────────────
-
-    async _openActionHub() {
-        if (this._actionHubOpen) return; // guard against double-open
-        this._actionHubOpen = true;
-        let result;
-        try {
-            result = await makeAwaitable(this.dialog, ActionHubModal, {});
-        } finally {
-            this._actionHubOpen = false;
-        }
-        if (result?.action) await this._runLaundryAction(result.action);
-    },
+    // ── Settle (navbar Settle button) ─────────────────────────────────────
 
     async _runLaundryAction(action) {
-        if (action === "new_order") {
-            // Fresh laundry order — addNewOrder flags _needsLaundrySetup, which the
-            // uuid useEffect above turns into the New Order setup modal.
-            this.pos.addNewOrder();
-            return;
-        }
         if (action === "settle") return this._openSettleModal();
     },
 

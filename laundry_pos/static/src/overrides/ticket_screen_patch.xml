@@ -9,9 +9,10 @@
                 <div class="input-group">
                     <span class="input-group-text"><i class="fa fa-user" aria-hidden="true"/></span>
                     <input type="text" class="form-control form-control-lg"
-                           placeholder="Search orders by customer (name, phone, address)..."
+                           placeholder="Search orders by customer (name, phone, address)… (Enter = search all)"
                            t-att-value="laundryState.customerQuery"
-                           t-on-input="onLaundryCustomerInput"/>
+                           t-on-input="onLaundryCustomerInput"
+                           t-on-keydown="onLaundryCustomerKeydown"/>
                     <button t-if="laundryState.selectedCustomer" class="btn btn-outline-secondary"
                             t-on-click="() => this.laundryClearCustomer()" title="Clear customer">
                         <i class="fa fa-times" aria-hidden="true"/>

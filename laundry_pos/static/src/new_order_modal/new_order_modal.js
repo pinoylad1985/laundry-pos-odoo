@@ -98,6 +98,34 @@ export class NewOrderModal extends Component {
         this.state.selectedPartner = null;
     }
 
+    // Press Enter → also search the SERVER. The POS only pre-loads a subset of
+    // customers, so a name like "Val" may not be loaded; this fetches matches.
+    onSearchKeydown(ev) {
+        if (ev.key === "Enter") {
+            this._serverSearchPartners();
+        }
+    }
+
+    async _serverSearchPartners() {
+        const q = this.state.partnerQuery.trim();
+        if (!q || this._searching) {
+            return;
+        }
+        this._searching = true;
+        try {
+            const fields = ["complete_name", "phone_mobile_search", "barcode", "street", "city", "email"];
+            const domain = [...Array(fields.length - 1).fill("|"), ...fields.map((f) => [f, "ilike", q])];
+            await this.pos.data.callRelated("res.partner", "get_new_partner", [
+                this.pos.config.id,
+                domain,
+                0,
+            ]);
+        } finally {
+            this._searching = false;
+            this.state.rev++; // re-run filteredPartners with the newly loaded customers
+        }
+    }
+
     pickPartner(partner) {
         this.state.selectedPartner = partner;
         this.state.partnerQuery = "";
@@ -116,6 +144,7 @@ export class NewOrderModal extends Component {
     }
 
     get filteredPartners() {
+        void this.state.rev; // re-run after a server search loads more customers
         const query = this.state.partnerQuery.trim().toLowerCase();
         if (!query) return [];
         const all = this.pos.models["res.partner"]?.getAll() ?? [];

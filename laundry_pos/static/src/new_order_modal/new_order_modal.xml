@@ -21,9 +21,10 @@
                 <div t-if="state.customerType === 'returning'" class="mt-3">
                     <input type="text"
                            class="form-control form-control-lg"
-                           placeholder="Search by name, phone, or address..."
+                           placeholder="Search by name, phone, or address… (press Enter to search all)"
                            t-att-value="state.partnerQuery"
                            t-on-input="onSearchInput"
+                           t-on-keydown="onSearchKeydown"
                            autofocus="autofocus"/>
 
                     <!-- Selected customer card -->

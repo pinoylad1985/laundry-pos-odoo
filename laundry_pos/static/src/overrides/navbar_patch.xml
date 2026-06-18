@@ -2,46 +2,36 @@
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
 
-        <!-- Hub buttons, beside the product search -->
+        <!-- Settle + Orders, beside the product search -->
         <xpath expr="//Input" position="before">
-            <!-- Desktop: three inline buttons -->
-            <div t-if="!ui.isSmall and this.pos.router.state.current === 'ProductScreen'"
-                 class="laundry-hub-buttons d-flex align-items-center gap-1 me-2">
-                <button class="btn btn-primary btn-lg lh-lg text-nowrap"
-                        t-on-click="() => this.laundryAction('new_order')">New Order</button>
+            <!-- Desktop: text buttons -->
+            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex align-items-center gap-1 me-2">
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.laundryAction('settle')">Settle</button>
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
                         t-on-click="() => this.pos.navigate('TicketScreen')">Orders</button>
             </div>
-            <!-- Mobile: ▾ dropdown, same classes/size as the order-tabs overflow button -->
-            <Dropdown t-if="ui.isSmall and this.pos.router.state.current === 'ProductScreen'">
-                <button class="btn btn-secondary btn-lg mx-1 fa fa-caret-down my-2"/>
-                <t t-set-slot="content">
-                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
-                    <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
-                </t>
-            </Dropdown>
+            <!-- Mobile: icons (Settle = card, then Orders = book) -->
+            <div t-if="ui.isSmall" class="laundry-nav-buttons d-flex align-items-center gap-1 me-1">
+                <button class="btn btn-light btn-lg lh-lg" title="Settle"
+                        t-on-click="() => this.laundryAction('settle')">
+                    <i class="fa fa-fw fa-lg fa-credit-card"/>
+                </button>
+                <button class="btn btn-light btn-lg lh-lg" title="Orders"
+                        t-on-click="() => this.pos.navigate('TicketScreen')">
+                    <i class="fa fa-fw fa-lg fa-book"/>
+                </button>
+            </div>
         </xpath>
 
-        <!-- Hamburger items (pastel green), alongside Cash In/Out and Close Register -->
-        <xpath expr="//div[hasclass('pos-burger-menu-items')]/DropdownItem[1]" position="before">
-            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('new_order')">New Order</DropdownItem>
-            <DropdownItem class="'laundry-hub-menu-item'" onSelected="() => this.laundryAction('settle')">Settle</DropdownItem>
+        <!-- Hide the base left-header Orders button (replaced by the buttons above) -->
+        <xpath expr="//button[hasclass('orders-button')]" position="attributes">
+            <attribute name="t-if">false</attribute>
         </xpath>
 
         <!-- Hide the top-bar barcode scanner button on mobile; it stays in the ☰ menu -->
         <xpath expr="//button[@t-on-click='onClickScan']" position="attributes">
             <attribute name="t-if">isBarcodeScannerSupported() and ['ProductScreen', 'TicketScreen'].includes(this.pos.router.state.current) and !pos.config.module_pos_restaurant and !ui.isSmall</attribute>
-        </xpath>
-
-        <!-- Desktop: "Orders" lives in the banner, so hide the left-header Orders
-             button there. Mobile: keep it (book icon) and move it before the product search. -->
-        <xpath expr="//button[hasclass('orders-button')]" position="attributes">
-            <attribute name="t-if">ui.isSmall</attribute>
-        </xpath>
-        <xpath expr="//Input" position="before">
-            <xpath expr="//button[hasclass('orders-button')]" position="move"/>
         </xpath>
 
     </t>
