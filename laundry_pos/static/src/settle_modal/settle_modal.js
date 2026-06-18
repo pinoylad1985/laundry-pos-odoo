@@ -5,6 +5,7 @@ import { Dialog } from "@web/core/dialog/dialog";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { CustomSelectCreateDialog } from "@point_of_sale/app/components/custom_select_create_dialog/custom_select_create_dialog";
+import { partnerMatchesQuery, buildPartnerSearchDomain } from "@laundry_pos/utils/partner_search";
 
 /**
  * SETTLE hub action — a customer search where each row shows that customer's
@@ -21,29 +22,49 @@ export class SettleModal extends Component {
     setup() {
         this.pos = usePos();
         this.dialog = useService("dialog");
-        this.state = useState({ query: "" });
+        this.state = useState({ query: "", rev: 0 });
     }
 
     onSearchInput(ev) {
         this.state.query = ev.target.value;
     }
 
+    // Press Enter → also search the server (POS pre-loads only a subset of customers).
+    onSearchKeydown(ev) {
+        if (ev.key === "Enter") {
+            this._serverSearch();
+        }
+    }
+
+    async _serverSearch() {
+        const q = this.state.query.trim();
+        if (!q || this._searching) {
+            return;
+        }
+        this._searching = true;
+        try {
+            await this.pos.data.callRelated("res.partner", "get_new_partner", [
+                this.pos.config.id,
+                buildPartnerSearchDomain(q),
+                0,
+            ]);
+        } finally {
+            this._searching = false;
+            this.state.rev++;
+        }
+    }
+
     // Default view = customers who carry a balance (total_due != 0). Typing
     // searches across all loaded customers by name / phone / company.
     get filteredPartners() {
-        const q = this.state.query.trim().toLowerCase();
+        void this.state.rev; // re-run after a server search loads more customers
+        const q = this.state.query.trim();
         const all = this.pos.models["res.partner"]?.getAll() ?? [];
-        const s = (v) => String(v || "").toLowerCase();
-        const list = q
-            ? all.filter(
-                  (p) =>
-                      s(p.name).includes(q) ||
-                      s(p.phone).includes(q) ||
-                      s(p.mobile).includes(q) ||
-                      s(p.parent_name).includes(q)
-              )
-            : all.filter((p) => (p.total_due || 0) !== 0);
-        return list.slice(0, 50);
+        if (!q) {
+            // Default view = customers who carry a balance.
+            return all.filter((p) => (p.total_due || 0) !== 0);
+        }
+        return all.filter((p) => partnerMatchesQuery(p, q));
     }
 
     credit(partner) {

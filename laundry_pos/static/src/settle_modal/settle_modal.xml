@@ -5,9 +5,10 @@
 
             <input type="text"
                    class="form-control form-control-lg mb-3"
-                   placeholder="Search customer by name, phone..."
+                   placeholder="Search customer by name, phone, address… (press Enter to search all)"
                    t-att-value="state.query"
                    t-on-input="onSearchInput"
+                   t-on-keydown="onSearchKeydown"
                    autofocus="autofocus"/>
 
             <div t-if="!filteredPartners.length" class="text-center text-muted py-5">

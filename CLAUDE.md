@@ -91,6 +91,13 @@ laundry_pos/
 - `static/src/overrides/pos_store.js` — `addNewOrder` must stay synchronous.
 - `__manifest__.py` — asset glob `laundry_pos/static/src/**/*` picks up all SCSS/JS/XML.
 
+## ⚠️ Re-check on every Odoo upgrade
+- `static/src/overrides/partner_search_patch.js` — `getNewPartners` is a **FULL COPY** of core
+  `PartnerList.getNewPartners` (not a `super` extension), because the multi-word search domain has to be
+  injected mid-method. It will **not** inherit future core changes. On each Odoo upgrade, diff it against the
+  new core method and re-sync if core changed. (Everything else in the module extends via `super`, so it
+  auto-inherits core changes — this one file is the exception.)
+
 ## Odoo 19 POS Architecture Notes
 - Popup pattern: `makeAwaitable` from `@point_of_sale/app/utils/make_awaitable_dialog`
 - POS store: `@point_of_sale/app/services/pos_store` → `PosStore`
