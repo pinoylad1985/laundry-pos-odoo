@@ -6,6 +6,7 @@ import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { LAUNDRY_MENU, LONG_SERVICE_CODES } from "@laundry_pos/utils/laundry_instructions";
 import { findLaundryProduct, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { partnerMatchesQuery, buildPartnerSearchDomain } from "@laundry_pos/utils/partner_search";
 
 const SERVICE_TYPES = [
     { code: "dropoff",           label: "Drop-off" },
@@ -113,11 +114,9 @@ export class NewOrderModal extends Component {
         }
         this._searching = true;
         try {
-            const fields = ["complete_name", "phone_mobile_search", "barcode", "street", "city", "email"];
-            const domain = [...Array(fields.length - 1).fill("|"), ...fields.map((f) => [f, "ilike", q])];
             await this.pos.data.callRelated("res.partner", "get_new_partner", [
                 this.pos.config.id,
-                domain,
+                buildPartnerSearchDomain(q),
                 0,
             ]);
         } finally {
@@ -145,19 +144,10 @@ export class NewOrderModal extends Component {
 
     get filteredPartners() {
         void this.state.rev; // re-run after a server search loads more customers
-        const query = this.state.partnerQuery.trim().toLowerCase();
+        const query = this.state.partnerQuery.trim();
         if (!query) return [];
         const all = this.pos.models["res.partner"]?.getAll() ?? [];
-        const s = (v) => String(v || "").toLowerCase();
-        return all
-            .filter((p) =>
-                s(p.name).includes(query) ||
-                s(p.phone).includes(query) ||
-                s(p.mobile).includes(query) ||
-                s(p.street).includes(query) ||
-                s(p.street2).includes(query) ||
-                s(p.city).includes(query)
-            );
+        return all.filter((p) => partnerMatchesQuery(p, query));
     }
 
     get showNoResults() {

@@ -3,6 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { useState } from "@odoo/owl";
 import { TicketScreen } from "@point_of_sale/app/screens/ticket_screen/ticket_screen";
+import { partnerMatchesQuery, buildPartnerSearchDomain } from "@laundry_pos/utils/partner_search";
 
 /**
  * LIST hub action — adds a customer search bar above the order "Search Orders"
@@ -45,11 +46,9 @@ patch(TicketScreen.prototype, {
         }
         this._searching = true;
         try {
-            const fields = ["complete_name", "phone_mobile_search", "barcode", "street", "city", "email"];
-            const domain = [...Array(fields.length - 1).fill("|"), ...fields.map((f) => [f, "ilike", q])];
             await this.pos.data.callRelated("res.partner", "get_new_partner", [
                 this.pos.config.id,
-                domain,
+                buildPartnerSearchDomain(q),
                 0,
             ]);
         } finally {
@@ -60,20 +59,11 @@ patch(TicketScreen.prototype, {
 
     get laundryCustomerResults() {
         void this.laundryState.rev; // re-run after a server search loads more customers
-        const q = this.laundryState.customerQuery.trim().toLowerCase();
+        const q = this.laundryState.customerQuery.trim();
         if (!q) {
             return [];
         }
-        const s = (v) => String(v || "").toLowerCase();
-        return (this.pos.models["res.partner"].getAll() || [])
-            .filter(
-                (p) =>
-                    s(p.name).includes(q) ||
-                    s(p.phone).includes(q) ||
-                    s(p.mobile).includes(q) ||
-                    s(p.parent_name).includes(q) ||
-                    s(p.pos_contact_address).includes(q)
-            );
+        return (this.pos.models["res.partner"].getAll() || []).filter((p) => partnerMatchesQuery(p, q));
     },
 
     laundrySelectCustomer(partner) {
