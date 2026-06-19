@@ -3,8 +3,8 @@
     <t t-name="laundry_pos.SettleModal">
         <Dialog title="'Settle Order'" size="'lg'">
 
-            <!-- A customer is selected (pre-selected from the Control Button, or
-                 picked from the list): everything lives INSIDE the box. -->
+            <!-- Customer pre-selected from the Control Button: box with Unselect +
+                 settlement buttons, all visible at once. -->
             <t t-if="state.selectedPartner">
                 <t t-set="sinfo" t-value="credit(state.selectedPartner)"/>
                 <div class="border rounded p-3" style="background:#f0fdf4;border-color:#86efac !important;">
@@ -22,26 +22,24 @@
                                 Deposited: <t t-esc="fmt(-sinfo.totalDue)"/>
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" t-on-click="() => this.unselect()">Unselect</button>
-                    </div>
-                    <!-- Settlement actions, inside the box -->
-                    <div class="d-flex flex-wrap gap-2 mt-3">
-                        <t t-if="sinfo.totalDue gt 0">
-                            <button t-if="sinfo.posOrdersAmountDue gt 0" class="btn btn-primary btn-lg"
-                                    t-on-click="() => this.settleOrders(state.selectedPartner)">Settle orders</button>
-                            <button t-if="sinfo.invoicesAmountDue gt 0" class="btn btn-primary btn-lg"
-                                    t-on-click="() => this.settleInvoices(state.selectedPartner)">Settle invoices</button>
-                            <button t-if="sinfo.remainingDue gt 0 and payLaterExists()" class="btn btn-primary btn-lg"
-                                    t-on-click="() => this.depositMoney(state.selectedPartner, sinfo.remainingDue)">Settle due amount</button>
-                        </t>
-                        <button t-elif="payLaterExists()" class="btn btn-outline-primary btn-lg"
-                                t-on-click="() => this.depositMoney(state.selectedPartner)">Deposit money</button>
-                        <span t-if="sinfo.totalDue lte 0 and !payLaterExists()" class="text-muted small align-self-center">No settlement available.</span>
+                        <div class="d-flex flex-column align-items-end gap-2 flex-shrink-0">
+                            <button class="btn btn-sm btn-outline-secondary" t-on-click="() => this.unselect()">Unselect</button>
+                            <t t-if="sinfo.totalDue gt 0">
+                                <button t-if="sinfo.posOrdersAmountDue gt 0" class="btn btn-primary text-nowrap"
+                                        t-on-click="() => this.settleOrders(state.selectedPartner)">Settle orders</button>
+                                <button t-if="sinfo.invoicesAmountDue gt 0" class="btn btn-primary text-nowrap"
+                                        t-on-click="() => this.settleInvoices(state.selectedPartner)">Settle invoices</button>
+                                <button t-if="sinfo.remainingDue gt 0 and payLaterExists()" class="btn btn-primary text-nowrap"
+                                        t-on-click="() => this.depositMoney(state.selectedPartner, sinfo.remainingDue)">Settle due amount</button>
+                            </t>
+                            <button t-elif="payLaterExists()" class="btn btn-outline-primary text-nowrap"
+                                    t-on-click="() => this.depositMoney(state.selectedPartner)">Deposit money</button>
+                        </div>
                     </div>
                 </div>
             </t>
 
-            <!-- No customer selected → search + list; click a row to select it -->
+            <!-- No customer pre-selected → search + list; each row settles directly. -->
             <t t-else="">
                 <input type="text"
                        class="form-control form-control-lg mb-3"
@@ -60,8 +58,7 @@
                 <div style="max-height:60vh;overflow:auto;">
                     <t t-foreach="filteredPartners" t-as="p" t-key="p.id">
                         <t t-set="info" t-value="credit(p)"/>
-                        <div class="d-flex align-items-center justify-content-between border-bottom py-2 gap-2"
-                             style="cursor:pointer;" t-on-click="() => this.select(p)">
+                        <div class="d-flex align-items-center justify-content-between border-bottom py-2 gap-2">
                             <div class="flex-grow-1" style="min-width:0;">
                                 <div class="fw-semibold text-truncate"><t t-esc="p.name"/></div>
                                 <div class="small text-muted text-truncate">
@@ -75,7 +72,22 @@
                                     Deposited: <t t-esc="fmt(-info.totalDue)"/>
                                 </div>
                             </div>
-                            <i class="fa fa-chevron-right text-muted flex-shrink-0"/>
+                            <div class="d-flex flex-column gap-1 flex-shrink-0">
+                                <t t-if="info.totalDue gt 0">
+                                    <button t-if="info.posOrdersAmountDue gt 0"
+                                            class="btn btn-primary btn-sm text-nowrap"
+                                            t-on-click="() => this.settleOrders(p)">Settle orders</button>
+                                    <button t-if="info.invoicesAmountDue gt 0"
+                                            class="btn btn-primary btn-sm text-nowrap"
+                                            t-on-click="() => this.settleInvoices(p)">Settle invoices</button>
+                                    <button t-if="info.remainingDue gt 0 and payLaterExists()"
+                                            class="btn btn-primary btn-sm text-nowrap"
+                                            t-on-click="() => this.depositMoney(p, info.remainingDue)">Settle due amount</button>
+                                </t>
+                                <button t-elif="payLaterExists()"
+                                        class="btn btn-outline-primary btn-sm text-nowrap"
+                                        t-on-click="() => this.depositMoney(p)">Deposit money</button>
+                            </div>
                         </div>
                     </t>
                 </div>
