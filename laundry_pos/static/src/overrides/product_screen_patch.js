@@ -5,7 +5,6 @@ import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
 import { SettleModal } from "@laundry_pos/settle_modal/settle_modal";
-import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
     laundryCodeForProduct,
@@ -60,17 +59,8 @@ patch(ProductScreen.prototype, {
             () => [this.pos.getOrder()?.uuid]
         );
 
-        // Show modal for freshly created orders
-        useEffect(
-            () => {
-                const order = this.pos.getOrder();
-                if (order?._needsLaundrySetup) {
-                    order._needsLaundrySetup = false;
-                    this._showLaundrySetupModal(order, false);
-                }
-            },
-            () => [this.pos.getOrder()?.uuid]
-        );
+        // The setup modal is NOT auto-opened — the cashier opens it via the
+        // "Set Up Now" button on the setup banner.
 
         // Listen for the flash signal (PosStore blocks the Customer button) and for
         // the navbar Settle button.
@@ -109,20 +99,6 @@ patch(ProductScreen.prototype, {
         if (!order) return false;
         if (order.is_settling_account) return true;
         return (order.lines || []).some((l) => l.settled_order_id || l.settled_invoice_id);
-    },
-
-    // Cancel the current (setup-incomplete) order so they don't pile up.
-    _laundryCancelOrder() {
-        const order = this.pos.getOrder();
-        if (!order) return;
-        this.dialog.add(ConfirmationDialog, {
-            title: "Cancel this order?",
-            body: "This order and any selected services will be discarded.",
-            confirm: () => {
-                this.pos.removeOrder(order);
-                this.pos.afterOrderDeletion();
-            },
-        });
     },
 
     _getLaundryServiceLabel() {
