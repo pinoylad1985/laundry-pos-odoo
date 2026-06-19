@@ -86,11 +86,11 @@ patch(ProductScreen.prototype, {
 
     async _runLaundryAction(action) {
         if (action === "new_order") {
-            // Reuse a blank order if the current one is empty; otherwise start a new
-            // one. Then open the New Order setup modal directly.
-            const cur = this.pos.getOrder();
-            const blank = cur && !cur.lines?.length && !cur.laundry_service_type;
-            if (!blank) {
+            // Open the setup modal for the CURRENT order (same path as the banner's
+            // "Set Up Now"). We deliberately do NOT create/navigate to a new order —
+            // that navigation fails under the POS service worker. Start the next
+            // order via the native ＋ instead.
+            if (!this.pos.getOrder()) {
                 this.pos.addNewOrder();
             }
             return this._showLaundrySetupModal(this.pos.getOrder(), false);

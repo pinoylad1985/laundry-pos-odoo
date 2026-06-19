@@ -4,26 +4,26 @@
 
         <!-- Settle + Orders, beside the product search -->
         <xpath expr="//Input" position="before">
-            <!-- Desktop: text buttons -->
+            <!-- Desktop: text buttons (active one is highlighted) -->
             <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2">
-                <button class="btn btn-primary btn-lg lh-lg text-nowrap"
+                <button class="btn btn-primary btn-lg lh-lg text-nowrap" t-att-class="{'active': laundryActiveSell}"
                         t-on-click="() => this.laundryAction('new_order')">New Order</button>
-                <button class="btn btn-light btn-lg lh-lg text-nowrap"
+                <button class="btn btn-light btn-lg lh-lg text-nowrap" t-att-class="{'active': laundryActiveSettle}"
                         t-on-click="() => this.laundryAction('settle')">Settle Order</button>
-                <button class="btn btn-light btn-lg lh-lg text-nowrap"
+                <button class="btn btn-light btn-lg lh-lg text-nowrap" t-att-class="{'active': laundryActiveList}"
                         t-on-click="() => this.pos.navigate('TicketScreen')">Order List</button>
             </div>
-            <!-- Mobile: compact icons (New Order, Settle = card, Order List = book) -->
+            <!-- Mobile: compact icons (active one is highlighted) -->
             <div t-if="ui.isSmall" class="laundry-nav-buttons d-flex align-items-center me-1">
-                <button class="btn btn-primary btn-lg lh-lg px-2" title="New Order"
+                <button class="btn btn-primary btn-lg lh-lg px-2" title="New Order" t-att-class="{'active': laundryActiveSell}"
                         t-on-click="() => this.laundryAction('new_order')">
                     <i class="fa fa-fw fa-cart-plus"/>
                 </button>
-                <button class="btn btn-light btn-lg lh-lg px-2" title="Settle Order"
+                <button class="btn btn-light btn-lg lh-lg px-2" title="Settle Order" t-att-class="{'active': laundryActiveSettle}"
                         t-on-click="() => this.laundryAction('settle')">
                     <i class="fa fa-fw fa-credit-card"/>
                 </button>
-                <button class="btn btn-light btn-lg lh-lg px-2" title="Order List"
+                <button class="btn btn-light btn-lg lh-lg px-2" title="Order List" t-att-class="{'active': laundryActiveList}"
                         t-on-click="() => this.pos.navigate('TicketScreen')">
                     <i class="fa fa-fw fa-book"/>
                 </button>

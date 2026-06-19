@@ -21,4 +21,22 @@ patch(Navbar.prototype, {
         }
         document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } }));
     },
+
+    // Highlight the navbar button matching the current order / screen.
+    get laundryActiveSell() {
+        return !!this.pos.getOrder()?.laundry_service_type;
+    },
+    get laundryActiveSettle() {
+        const order = this.pos.getOrder();
+        if (!order) {
+            return false;
+        }
+        if (order.is_settling_account) {
+            return true;
+        }
+        return (order.lines || []).some((l) => l.settled_order_id || l.settled_invoice_id);
+    },
+    get laundryActiveList() {
+        return this.pos.router.state.current === "TicketScreen";
+    },
 });

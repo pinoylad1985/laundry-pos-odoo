@@ -34,20 +34,6 @@
                     </button>
                 </div>
 
-                <!-- Setup skipped: red warning bar -->
-                <div t-elif="!this._laundryIsSettlement()"
-                     class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
-                     t-att-style="'min-height:52px;cursor:pointer;flex-shrink:0;background:' + (laundryState.flash ? '#ffffff' : '#fee2e2') + ';'"
-                     t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
-                    <span class="fw-semibold" style="color:#dc2626;font-size:0.9rem;">
-                        ⚠ Tap here to complete New Order details
-                    </span>
-                    <button class="btn btn-sm btn-danger ms-2 flex-shrink-0"
-                            t-on-click="(ev) => { ev.stopPropagation(); this._showLaundrySetupModal(pos.getOrder(), true); }">
-                        Set Up Now
-                    </button>
-                </div>
-
             </t>
         </xpath>
 
@@ -62,7 +48,7 @@
                  class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-center"
                  style="background:rgba(255,255,255,0.92);z-index:20;">
                 <i class="fa fa-lock fa-3x text-muted mb-3"/>
-                <h5 class="fw-semibold text-muted px-3">Complete the New Order setup to add laundry items</h5>
+                <h5 class="fw-semibold text-muted px-3">Tap <b>New Order</b> or <b>Settle Order</b> above to begin</h5>
             </div>
         </xpath>
     </t>
