@@ -364,9 +364,11 @@ export class NewOrderModal extends Component {
     get canConfirm() {
         // Variant/attribute selection happens later in the main POS cart and is
         // enforced at payment, so it is not required to confirm the modal.
+        // Self-service does not require a service to be selected.
+        const isSelfService = this.state.serviceType === "self_service";
         return !!(
             this.state.customerType &&
-            this.hasAnyService &&
+            (isSelfService || this.hasAnyService) &&
             this.state.serviceType &&
             this.scheduleComplete &&
             !this.turnaroundError
