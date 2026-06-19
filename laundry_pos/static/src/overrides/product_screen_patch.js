@@ -102,6 +102,15 @@ patch(ProductScreen.prototype, {
         this.dialog.add(SettleModal, {});
     },
 
+    // True when the current order is a settlement (deposit / settle orders or
+    // invoices) — those use the cart, so the product-grid lock must not show.
+    _laundryIsSettlement() {
+        const order = this.pos.getOrder();
+        if (!order) return false;
+        if (order.is_settling_account) return true;
+        return (order.lines || []).some((l) => l.settled_order_id || l.settled_invoice_id);
+    },
+
     // Cancel the current (setup-incomplete) order so they don't pile up.
     _laundryCancelOrder() {
         const order = this.pos.getOrder();
