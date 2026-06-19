@@ -59,6 +59,14 @@ export class NewOrderModal extends Component {
 
         // Pre-populate from previously submitted details (Change / after reload)
         this._applyInitialData(this.props.initialData);
+
+        // The order's customer is the single source of truth: if one is already set
+        // (via the Control Button or a previous setup), auto-select it here.
+        const orderPartner = this.pos.getOrder()?.getPartner?.();
+        if (orderPartner) {
+            this.state.customerType = "returning";
+            this.state.selectedPartner = orderPartner;
+        }
     }
 
     // Restore saved details into form state so the cashier can edit them
@@ -128,6 +136,13 @@ export class NewOrderModal extends Component {
     pickPartner(partner) {
         this.state.selectedPartner = partner;
         this.state.partnerQuery = "";
+        this.pos.setPartnerToCurrentOrder(partner); // share with the Control Button / order
+    }
+
+    unselectPartner() {
+        this.state.selectedPartner = null;
+        this.state.partnerQuery = "";
+        this.pos.setPartnerToCurrentOrder(false); // clear it on the order too
     }
 
     editPartner(partner) {

@@ -22,7 +22,16 @@ export class SettleModal extends Component {
     setup() {
         this.pos = usePos();
         this.dialog = useService("dialog");
-        this.state = useState({ query: "", rev: 0 });
+        this.state = useState({
+            query: "",
+            rev: 0,
+            // Auto-select the order's current customer (Control Button) if any.
+            selectedPartner: this.pos.getOrder()?.getPartner?.() || null,
+        });
+    }
+
+    unselect() {
+        this.state.selectedPartner = null;
     }
 
     onSearchInput(ev) {

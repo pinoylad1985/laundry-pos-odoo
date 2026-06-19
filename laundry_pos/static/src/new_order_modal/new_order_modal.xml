@@ -43,8 +43,8 @@
                             </div>
                         </div>
                         <button class="btn btn-sm btn-outline-secondary flex-shrink-0"
-                                t-on-click="() => { state.selectedPartner = null; state.partnerQuery = ''; }">
-                            Change
+                                t-on-click="() => this.unselectPartner()">
+                            Unselect
                         </button>
                     </div>
 
