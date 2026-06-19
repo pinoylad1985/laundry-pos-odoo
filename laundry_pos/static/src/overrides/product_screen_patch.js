@@ -28,7 +28,7 @@ patch(ProductScreen.prototype, {
         super.setup();
 
         // mode: 'idle' | 'submitted' | 'skipped'
-        this.laundryState = useState({ mode: "idle", flash: false, turnaround: null });
+        this.laundryState = useState({ mode: "idle", flash: false, turnaround: null, modalOpen: false });
 
         // Sync banner mode when switching orders or returning to POS
         useEffect(
@@ -85,6 +85,16 @@ patch(ProductScreen.prototype, {
     // ── Settle (navbar Settle button) ─────────────────────────────────────
 
     async _runLaundryAction(action) {
+        if (action === "new_order") {
+            // Reuse a blank order if the current one is empty; otherwise start a new
+            // one. Then open the New Order setup modal directly.
+            const cur = this.pos.getOrder();
+            const blank = cur && !cur.lines?.length && !cur.laundry_service_type;
+            if (!blank) {
+                this.pos.addNewOrder();
+            }
+            return this._showLaundrySetupModal(this.pos.getOrder(), false);
+        }
         if (action === "settle") return this._openSettleModal();
     },
 
@@ -217,9 +227,16 @@ patch(ProductScreen.prototype, {
         const stored = lsLoad(order?.uuid);
         const initData = (stored && (stored.serviceType || stored.customerType)) ? stored : null;
 
-        const result = await makeAwaitable(this.dialog, NewOrderModal, {
-            initialData: initData || undefined,
-        });
+        // While the setup modal is open, suppress the setup banner above the cart.
+        this.laundryState.modalOpen = true;
+        let result;
+        try {
+            result = await makeAwaitable(this.dialog, NewOrderModal, {
+                initialData: initData || undefined,
+            });
+        } finally {
+            this.laundryState.modalOpen = false;
+        }
 
         // Explicit "Skip for now" — save whatever was selected for later editing
         if (result?.skipped) {

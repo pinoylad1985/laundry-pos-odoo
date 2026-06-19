@@ -5,19 +5,25 @@
         <!-- Settle + Orders, beside the product search -->
         <xpath expr="//Input" position="before">
             <!-- Desktop: text buttons -->
-            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex align-items-center gap-1 me-2">
+            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2">
+                <button class="btn btn-primary btn-lg lh-lg text-nowrap"
+                        t-on-click="() => this.laundryAction('new_order')">New Order</button>
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
-                        t-on-click="() => this.laundryAction('settle')">Settle</button>
+                        t-on-click="() => this.laundryAction('settle')">Settle Order</button>
                 <button class="btn btn-light btn-lg lh-lg text-nowrap"
-                        t-on-click="() => this.pos.navigate('TicketScreen')">Orders</button>
+                        t-on-click="() => this.pos.navigate('TicketScreen')">Order List</button>
             </div>
-            <!-- Mobile: icons (Settle = card, then Orders = book) -->
+            <!-- Mobile: icons (New Order, Settle = card, Order List = book) -->
             <div t-if="ui.isSmall" class="laundry-nav-buttons d-flex align-items-center gap-1 me-1">
-                <button class="btn btn-light btn-lg lh-lg" title="Settle"
+                <button class="btn btn-primary btn-lg lh-lg" title="New Order"
+                        t-on-click="() => this.laundryAction('new_order')">
+                    <i class="fa fa-fw fa-lg fa-cart-plus"/>
+                </button>
+                <button class="btn btn-light btn-lg lh-lg" title="Settle Order"
                         t-on-click="() => this.laundryAction('settle')">
                     <i class="fa fa-fw fa-lg fa-credit-card"/>
                 </button>
-                <button class="btn btn-light btn-lg lh-lg" title="Orders"
+                <button class="btn btn-light btn-lg lh-lg" title="Order List"
                         t-on-click="() => this.pos.navigate('TicketScreen')">
                     <i class="fa fa-fw fa-lg fa-book"/>
                 </button>

@@ -34,6 +34,10 @@ export class SettleModal extends Component {
         this.state.selectedPartner = null;
     }
 
+    select(partner) {
+        this.state.selectedPartner = partner;
+    }
+
     onSearchInput(ev) {
         this.state.query = ev.target.value;
     }
