@@ -10,16 +10,19 @@ patch(Navbar.prototype, {
      * dispatch once it has had a tick to mount its listener.
      */
     laundryAction(action) {
+        const fire = () =>
+            document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } }));
         if (this.pos.router.state.current !== "ProductScreen") {
             const order = this.pos.getOrder() || this.pos.addNewOrder();
             this.pos.navigate("ProductScreen", { orderUuid: order.uuid });
-            setTimeout(
-                () => document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } })),
-                50
-            );
+            setTimeout(fire, 50);
             return;
         }
-        document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } }));
+        // Defer to the next tick so the originating click fully finishes before the
+        // dialog opens. A synchronous open is swallowed by the same desktop mouse
+        // click (the click lands "outside" the just-opened modal and closes it);
+        // touch on mobile doesn't hit this, which is why mobile already worked.
+        setTimeout(fire, 0);
     },
 
     // Highlight the navbar button matching the current order / screen.
