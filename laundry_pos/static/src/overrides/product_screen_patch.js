@@ -48,9 +48,11 @@ patch(ProductScreen.prototype, {
                 if (order?.laundry_service_type) {
                     this.laundryState.mode = "submitted";
                     this.laundryState.turnaround = stored?.turnaround || order?.laundry_turnaround || null;
+                    if (order && !order._laundryPurpose) order._laundryPurpose = "sell";
                 } else if (stored?.status === "skipped" || order?._laundrySetupProcessed) {
                     this.laundryState.mode = "skipped";
                     this.laundryState.turnaround = null;
+                    if (order && !order._laundryPurpose) order._laundryPurpose = "sell";
                 } else {
                     this.laundryState.mode = "idle";
                     this.laundryState.turnaround = null;
@@ -93,9 +95,17 @@ patch(ProductScreen.prototype, {
             if (!this.pos.getOrder()) {
                 this.pos.addNewOrder();
             }
-            return this._showLaundrySetupModal(this.pos.getOrder(), false);
+            const order = this.pos.getOrder();
+            // Commit this order to a SALE the instant New Order is clicked, so Settle
+            // disables immediately (mutually exclusive) — not only once completed.
+            if (order) order._laundryPurpose = "sell";
+            return this._showLaundrySetupModal(order, false);
         }
-        if (action === "settle") return this._openSettleModal();
+        if (action === "settle") {
+            const order = this.pos.getOrder();
+            if (order) order._laundryPurpose = "settle"; // disables New Order immediately
+            return this._openSettleModal();
+        }
     },
 
     _openSettleModal() {

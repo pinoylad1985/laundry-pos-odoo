@@ -23,16 +23,20 @@ patch(Navbar.prototype, {
         fire();
     },
 
-    // Highlight the navbar button matching the current order / screen.
+    // Highlight (and drive mutual-exclusion of) the navbar button matching the
+    // current order's purpose. `_laundryPurpose` is set the instant New Order /
+    // Settle is clicked; the persisted signals (service type / settle lines) keep
+    // it correct after a reload, when the JS-only purpose flag is gone.
     get laundryActiveSell() {
-        return !!this.pos.getOrder()?.laundry_service_type;
+        const order = this.pos.getOrder();
+        return !!(order && (order._laundryPurpose === "sell" || order.laundry_service_type));
     },
     get laundryActiveSettle() {
         const order = this.pos.getOrder();
         if (!order) {
             return false;
         }
-        if (order.is_settling_account) {
+        if (order._laundryPurpose === "settle" || order.is_settling_account) {
             return true;
         }
         return (order.lines || []).some((l) => l.settled_order_id || l.settled_invoice_id);
