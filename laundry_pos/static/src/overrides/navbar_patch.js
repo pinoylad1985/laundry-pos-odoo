@@ -10,8 +10,11 @@ patch(Navbar.prototype, {
      * dispatch once it has had a tick to mount its listener.
      */
     laundryAction(action) {
-        const fire = () =>
+        console.log("[laundry] navbar.laundryAction", action, "screen:", this.pos.router.state.current);
+        const fire = () => {
+            console.log("[laundry] dispatching laundry-action", action);
             document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } }));
+        };
         if (this.pos.router.state.current !== "ProductScreen") {
             const order = this.pos.getOrder() || this.pos.addNewOrder();
             this.pos.navigate("ProductScreen", { orderUuid: order.uuid });
