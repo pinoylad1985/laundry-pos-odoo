@@ -381,8 +381,13 @@ export class NewOrderModal extends Component {
         // enforced at payment, so it is not required to confirm the modal.
         // Self-service does not require a service to be selected.
         const isSelfService = this.state.serviceType === "self_service";
+        // A Returning customer MUST have a partner actually selected (even after a
+        // Change that cleared it); a New customer doesn't (created later / walk-in).
+        const customerOk =
+            this.state.customerType === "new" ||
+            (this.state.customerType === "returning" && !!this.state.selectedPartner);
         return !!(
-            this.state.customerType &&
+            customerOk &&
             (isSelfService || this.hasAnyService) &&
             this.state.serviceType &&
             this.scheduleComplete &&

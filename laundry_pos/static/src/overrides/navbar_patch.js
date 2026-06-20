@@ -10,22 +10,17 @@ patch(Navbar.prototype, {
      * dispatch once it has had a tick to mount its listener.
      */
     laundryAction(action) {
-        console.log("[laundry] navbar.laundryAction", action, "screen:", this.pos.router.state.current);
-        const fire = () => {
-            console.log("[laundry] dispatching laundry-action", action);
+        const fire = () =>
             document.dispatchEvent(new CustomEvent("laundry-action", { detail: { action } }));
-        };
+        // If we're on another screen, hop to ProductScreen first (it owns the
+        // dialogs), then dispatch once it has had a tick to mount its listener.
         if (this.pos.router.state.current !== "ProductScreen") {
             const order = this.pos.getOrder() || this.pos.addNewOrder();
             this.pos.navigate("ProductScreen", { orderUuid: order.uuid });
             setTimeout(fire, 50);
             return;
         }
-        // Defer to the next tick so the originating click fully finishes before the
-        // dialog opens. A synchronous open is swallowed by the same desktop mouse
-        // click (the click lands "outside" the just-opened modal and closes it);
-        // touch on mobile doesn't hit this, which is why mobile already worked.
-        setTimeout(fire, 0);
+        fire();
     },
 
     // Highlight the navbar button matching the current order / screen.

@@ -34,6 +34,20 @@
                     </button>
                 </div>
 
+                <!-- Setup started but skipped/unfinished: amber prompt to finish it.
+                     (A blank, never-started order shows NO banner.) -->
+                <div t-elif="laundryState.mode === 'skipped'"
+                     class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
+                     t-att-style="'flex-shrink:0;background:' + (laundryState.flash ? '#ffffff' : '#fef3c7') + ';'">
+                    <span class="fw-semibold" style="color:#b45309;font-size:0.9rem;">
+                        ⚠ New Order details incomplete
+                    </span>
+                    <button class="btn btn-sm btn-warning ms-2 flex-shrink-0"
+                            t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
+                        Complete
+                    </button>
+                </div>
+
             </t>
         </xpath>
 

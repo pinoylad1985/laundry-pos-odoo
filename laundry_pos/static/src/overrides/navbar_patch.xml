@@ -11,8 +11,10 @@
             <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2"
                  style="position:relative; z-index:3;">
                 <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSell ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSettle"
                         t-on-click="() => this.laundryAction('new_order')">New Order</button>
                 <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSettle ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSell"
                         t-on-click="() => this.laundryAction('settle')">Settle Order</button>
                 <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveList ? 'btn-primary' : 'btn-light'"
                         t-on-click="() => this.pos.navigate('TicketScreen')">Order List</button>
@@ -20,10 +22,12 @@
             <!-- Mobile: compact icons. Active mode = solid primary; others = light. -->
             <div t-if="ui.isSmall" class="laundry-nav-buttons d-flex align-items-center me-1">
                 <button class="btn btn-lg lh-lg px-2" title="New Order" t-att-class="laundryActiveSell ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSettle"
                         t-on-click="() => this.laundryAction('new_order')">
                     <i class="fa fa-fw fa-cart-plus"/>
                 </button>
                 <button class="btn btn-lg lh-lg px-2" title="Settle Order" t-att-class="laundryActiveSettle ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSell"
                         t-on-click="() => this.laundryAction('settle')">
                     <i class="fa fa-fw fa-credit-card"/>
                 </button>

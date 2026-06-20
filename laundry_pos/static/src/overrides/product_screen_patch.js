@@ -68,12 +68,8 @@ patch(ProductScreen.prototype, {
             this._laundryFlashHandler = () => this._flashBanner();
             document.addEventListener("laundry-flash-needed", this._laundryFlashHandler);
 
-            this._laundryActionHandler = (ev) => {
-                console.log("[laundry] ProductScreen received laundry-action:", ev.detail?.action);
-                this._runLaundryAction(ev.detail?.action);
-            };
+            this._laundryActionHandler = (ev) => this._runLaundryAction(ev.detail?.action);
             document.addEventListener("laundry-action", this._laundryActionHandler);
-            console.log("[laundry] ProductScreen mounted; laundry-action listener attached");
         });
         onWillUnmount(() => {
             document.removeEventListener("laundry-flash-needed", this._laundryFlashHandler);
@@ -89,7 +85,6 @@ patch(ProductScreen.prototype, {
     // ── Settle (navbar Settle button) ─────────────────────────────────────
 
     async _runLaundryAction(action) {
-        console.log("[laundry] _runLaundryAction:", action, "order:", this.pos.getOrder()?.uuid);
         if (action === "new_order") {
             // Open the setup modal for the CURRENT order (same path as the banner's
             // "Set Up Now"). We deliberately do NOT create/navigate to a new order —
@@ -234,16 +229,11 @@ patch(ProductScreen.prototype, {
 
         // While the setup modal is open, suppress the setup banner above the cart.
         this.laundryState.modalOpen = true;
-        console.log("[laundry] _showLaundrySetupModal: opening NewOrderModal (dialog:", !!this.dialog, ")");
         let result;
         try {
             result = await makeAwaitable(this.dialog, NewOrderModal, {
                 initialData: initData || undefined,
             });
-            console.log("[laundry] NewOrderModal resolved:", result);
-        } catch (e) {
-            console.error("[laundry] NewOrderModal threw:", e);
-            throw e;
         } finally {
             this.laundryState.modalOpen = false;
         }
