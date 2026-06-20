@@ -4,8 +4,12 @@
 
         <!-- Settle + Orders, beside the product search -->
         <xpath expr="//Input" position="before">
-            <!-- Desktop: text buttons. Active mode = solid primary; others = light. -->
-            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2">
+            <!-- Desktop: text buttons. Active mode = solid primary; others = light.
+                 position-relative + z-index lifts these above the core left-header's
+                 invisible `position-relative w-100` layer, which otherwise paints over
+                 (and eats clicks on) the leftmost button. -->
+            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2"
+                 style="position:relative; z-index:3;">
                 <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSell ? 'btn-primary' : 'btn-light'"
                         t-on-click="() => this.laundryAction('new_order')">New Order</button>
                 <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSettle ? 'btn-primary' : 'btn-light'"
