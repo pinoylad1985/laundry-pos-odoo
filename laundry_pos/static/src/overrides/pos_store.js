@@ -37,6 +37,16 @@ patch(PosStore.prototype, {
     },
 
     /**
+     * Keep the Order List (TicketScreen) independent of the Customer control
+     * button. The core seeds the order search with the current order's partner
+     * name, which auto-filters the list by whoever is on the order. We always
+     * open the Order List unfiltered so the two selections stay independent.
+     */
+    getDefaultSearchDetails() {
+        return { fieldName: "RECEIPT_NUMBER", searchTerm: "" };
+    },
+
+    /**
      * When an order is cancelled/deleted, drop its saved laundry details so
      * stale data can't resurface if a future order reuses the same UUID.
      * removeOrder is the foundational single-order removal that all
