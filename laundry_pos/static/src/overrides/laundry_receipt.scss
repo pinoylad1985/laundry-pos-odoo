@@ -1,20 +1,32 @@
-// Laundry receipt styling.
+// Laundry receipt styling. Body is bumped +2px (14 → 16) for readability; the
+// configurable "Footer" text is pinned back to its original size further down.
 .pos-receipt {
-    font-size: 14px;
+    font-size: 16px;
     text-align: left;
 }
 
-// The core print stylesheet pins 14px; match it so the printed ticket agrees.
+// The core print stylesheet pins the base size; match it so the printed ticket agrees.
 @media print {
     .render-container .pos-receipt {
-        font-size: 14px !important;
+        font-size: 16px !important;
     }
 }
 
-// Make the reduced-size receipt bits a uniform 14px too (rate, small text).
+// Make the reduced-size receipt bits a uniform size too (rate, small text).
 .pos-receipt .info-list,
 .pos-receipt small {
-    font-size: 14px !important;
+    font-size: 16px !important;
+}
+
+// Keep the configurable receipt "Footer" text (POS settings → Footer, rendered
+// right after the .before-footer hook) at its original 14px — everything else is +2px.
+.pos-receipt .before-footer + .pos-receipt-center-align {
+    font-size: 14px;
+}
+@media print {
+    .render-container .pos-receipt .before-footer + .pos-receipt-center-align {
+        font-size: 14px !important;
+    }
 }
 
 // Product main line: bold name + amount, with qty & amount aligned to the top.
@@ -35,7 +47,7 @@
 }
 .pos-receipt .laundry-attrs,
 .pos-receipt .laundry-attrs .attribute-line {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 // Dashed separator at the TOP of each product line except the first, running
@@ -73,7 +85,7 @@
 // ── Multi-copy ticket receipt ─────────────────────────────────────────────
 // Big header at the top of each copy (e.g. "1/4 TRANSACTION COPY").
 .pos-receipt .laundry-copy-header {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: bold;
     text-align: center;
     margin: 4px 0 8px;
