@@ -71,6 +71,11 @@ patch(ReceiptHeader.prototype, {
         return d ? (SERVICE_LABELS[d.svcType] || "") : "";
     },
 
+    // Customer tags are printed only for Locker orders.
+    get laundryIsLocker() {
+        return this._laundryData()?.svcType === "locker";
+    },
+
     get laundryPickup() {
         const d = this._laundryData();
         return d ? fmtDateTime12(d.schedule.pickupDate, d.schedule.pickupHour) : "";
