@@ -37,11 +37,17 @@ laundry_pos/
     ├── utils/
     │   ├── laundry_instructions.js  # LAUNDRY_MENU: 4 service products matched BY NAME
     │   ├── laundry_products.js      # name matching, TAT helpers, configured-line vals
-    │   └── laundry_storage.js       # localStorage per-order persistence (keyed by uuid)
+    │   ├── laundry_storage.js       # localStorage per-order persistence (keyed by uuid)
+    │   └── partner_search.js        # multi-word partner match + server-search domain builder
     ├── new_order_modal/             # 4-step modal (customer / services / type / schedule)
+    ├── settle_modal/                # Settle modal: customer search → settle orders/invoices/due/deposit
     └── overrides/
-        ├── pos_store.js             # addNewOrder flag, selectPartner block, no-merge, printReceipt, pay gates
-        ├── product_screen_patch.*   # opens modal, banner, rehydrate, addProduct block
+        ├── pos_store.js             # addNewOrder flag, selectPartner block, no-merge, printReceipt, pay gates, getDefaultSearchDetails
+        ├── navbar_patch.*           # New Order / Settle Order / Order List hub buttons (active-highlight + mutual-exclusion + z-index lift)
+        ├── product_screen_patch.*   # New Order modal, setup banner, grid lock, rehydrate, _laundryPurpose (sell/settle)
+        ├── ticket_screen_patch.*    # Order List customer-search bar (multi-word + server search)
+        ├── partner_search_patch.js  # multi-word partner search in the core Customer picker (⚠ upgrade note below)
+        ├── partner_block_patch.*    # redirect core settle/deposit menu items into the Settle modal
         ├── order_display_patch.js   # fixed line order (WDF→Press→DWC→Shoe)
         ├── order_summary_patch.js   # tap a laundry line → fresh configurator
         ├── order_line_patch.*       # per-line receipt attributes, WDF/Press count lines
@@ -68,6 +74,24 @@ laundry_pos/
 - **Turnaround (TAT) is computed from the schedule and locked** — not a free cashier choice; keeps lines/receipt consistent.
 - **Configurator crash guard** — `initAttributes()` pre-seeds `state.attributes` for every value's `attribute_id` so
   malformed products (e.g. after a DB restore) don't crash the popup.
+
+## Navbar hub buttons (New Order / Settle Order / Order List)
+The navbar (`navbar_patch.*`) carries three buttons (desktop = text, mobile = icons). A blank order has no chosen
+purpose; clicking decides it. **There is NO setup banner for a blank/idle order** — only the navbar buttons + a locked
+product grid ("Tap New Order or Settle Order above to begin").
+- **New Order** → opens the New Order setup modal **for the current order** (does NOT create/navigate to a new order —
+  that navigation fails under the POS service worker; use the native ＋ to start the next order). Dispatch: navbar fires a
+  `laundry-action` DOM event; `ProductScreen._runLaundryAction` handles it.
+- **Settle Order** → opens the Settle modal (`settle_modal/`), a customer search where each row surfaces that customer's
+  real `pos_settle_due` action (Settle orders / invoices / due / Deposit). The Control Button customer pre-fills it.
+- **Order List** → navigates to `TicketScreen`; `ticket_screen_patch.*` adds a customer-search bar above the core SearchBar.
+- **Mutual exclusivity via `order._laundryPurpose`** (`'sell'|'settle'`, set on click in `_runLaundryAction`): once set,
+  the navbar getters `laundryActiveSell`/`laundryActiveSettle` disable the *other* button and highlight the active one
+  (solid primary). Restored after reload from stored status / settle lines. To switch an order's type, start a fresh order.
+- **Buttons need `position-relative; z-index`** — the core `pos-leftheader` has an invisible `position-relative w-100`
+  layer that (per CSS painting rules) sits over the leftmost button and eats its clicks; the lift fixes it. Don't remove it.
+- **Order List is independent of the Customer Control Button** — `PosStore.getDefaultSearchDetails` is overridden to
+  always return a blank search; core otherwise seeds the order search with the current order's partner name.
 
 ## Service Types (seeded data + frontend list)
 | Code | Label |
@@ -123,19 +147,21 @@ Use these official Odoo component names so we don't get confused.
 **Navbar** = the whole top strip (`point_of_sale.Navbar`, file `navbar_patch.xml`). Holds: `Register`
 button, `orders-button` (Orders), the ＋ new-order, `OrderTabs` (the `73001…` tabs), product-search
 `Input`, barcode button, `CashierName` (avatar), the lock, and the ☰ hamburger (`Dropdown` — Cash
-In/Out, Close Register…). *Our additions:* the **hub buttons** (New Order / Settle / Orders).
+In/Out, Close Register…). *Our additions:* the **hub buttons** (New Order / Settle Order / Order List — desktop text,
+mobile icons; the chosen one is highlighted solid-primary and the opposite one is disabled — mutual exclusivity).
 
 **Product screen parts:** `products`/product grid (cards) · **category buttons** (the colored pills =
 product categories) · `OrderSummary` = the **cart**, made of `Orderline`s · **control buttons**
-(bottom-left: Customer, Note…) · `Numpad` + `Actionpad` (number pad + **Pay**) · *our* **setup banner**
-(the green/red "complete New Order details" strip — NOT the navbar).
+(bottom-left: Customer, Note…) · `Numpad` + `Actionpad` (number pad + **Pay**) · *our* **setup banner** above the cart
+(green = submitted summary with **Change**; amber = skipped New Order with **Complete**; *no* banner for a blank/idle
+order) and the **grid-lock overlay** on the product grid until setup is done — both are NOT the navbar.
 
 **Orders screen (TicketScreen) parts:** `SearchBar` = the "Search Orders" bar · *our* **customer search
 bar** above it · the **order list** (rows) · the **detail/refund pane** on the right.
 
 **Popups / Modals** (float over a screen): `PartnerList` = the "Choose customer" picker · **Product
-Configurator** · **Opening/Closing control** (cash-count popups) · *our* **New Order modal**,
-**Action hub**, **Settle modal**.
+Configurator** · **Opening/Closing control** (cash-count popups) · *our* **New Order modal** and **Settle modal**.
+(The old **Action hub** was removed — its actions are now the navbar hub buttons.)
 
 Rules of thumb: **"screen"** = a full page · **"navbar"** = top strip (vs the lower **"setup banner"**) ·
 **"popup"/"modal"** = floats on top.

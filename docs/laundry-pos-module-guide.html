@@ -53,6 +53,7 @@
       <li><a href="#install">Installing the module in Odoo</a></li>
       <li><a href="#products">The 4 service products</a></li>
       <li><a href="#modal">Taking an order (the New Order modal)</a></li>
+      <li><a href="#settle">Settle Order &amp; Order List</a></li>
       <li><a href="#cart">In the cart: options, quantity, payment</a></li>
       <li><a href="#receipt">The receipt</a></li>
       <li><a href="#cash">Opening &amp; closing the register</a></li>
@@ -62,7 +63,8 @@
   <h2 id="what">1. What the module does</h2>
   <p><code>laundry_pos</code> turns the standard Odoo POS into a laundry intake terminal:</p>
   <ul>
-    <li>A <strong>New Order modal</strong> that opens automatically for every new order and walks the cashier through customer, services, service type and schedule.</li>
+    <li>Three <strong>navbar buttons</strong> — <strong>New Order</strong>, <strong>Settle Order</strong>, <strong>Order List</strong> — that drive the whole laundry workflow.</li>
+    <li>A <strong>New Order modal</strong> (opened by the New Order button) that walks the cashier through customer, services, service type and schedule.</li>
     <li>An auto-calculated <strong>turnaround (Express / Regular)</strong> based on the schedule.</li>
     <li>Laundry-aware <strong>cart rules</strong> (per-KG Wash-Dry-Fold, single-item Dry/Wet &amp; Shoe Clean, configurable options).</li>
     <li>A <strong>multi-copy laundry receipt</strong> (transaction / shop / customer copies).</li>
@@ -97,24 +99,39 @@
      in the cart, and the turnaround value is set automatically from the schedule.</p>
 
   <h2 id="modal">4. Taking an order (the New Order modal)</h2>
-  <p>When the cashier starts a <strong>New Order</strong>, the modal opens automatically with four steps:</p>
+  <p>Start every laundry order by tapping <strong>New Order</strong> in the navbar (top strip). The modal opens with four steps:</p>
   <div class="step">
     <ol>
-      <li><strong>Customer</strong> — choose <em>New</em> or <em>Returning</em>. For returning, search by name / phone / address and pick the customer (or edit their details).</li>
-      <li><strong>Services</strong> — tap the service pills (Wash-Dry-Fold, Dry/Wet Clean, Shoe Clean, Press). Each tap <strong>adds that product to the order</strong>. Tap more than once to add multiple lines.</li>
+      <li><strong>Customer</strong> — choose <em>New</em> or <em>Returning</em>. For returning, search by name / phone / address (press <kbd>Enter</kbd> to search <em>all</em> customers, not just recent ones) and pick the customer. A <em>Returning</em> order can't continue until a customer is selected.</li>
+      <li><strong>Services</strong> — tap the service pills (Wash-Dry-Fold, Dry/Wet Clean, Shoe Clean, Press). Each tap <strong>adds that product to the order</strong>. Tap more than once to add multiple lines. (Self-service needs no service.)</li>
       <li><strong>Service Type</strong> — Drop-off / Drop-off &amp; Delivery / Pickup &amp; Delivery / Locker / Self-service.</li>
       <li><strong>Schedule</strong> — pick the date (Today / Tomorrow / +2 days) and hour. Drop-off uses a <em>Claim</em> time; the others use <em>Pickup</em> and/or <em>Delivery</em> times. Some early-morning hours are closed.</li>
     </ol>
   </div>
-  <p>The modal then shows the calculated <strong>turnaround</strong> — ⚡ <strong>Express</strong> or 🕐 <strong>Regular</strong> —
-     and blocks confirmation if the schedule is below the minimum lead time.</p>
+  <p>The modal shows the calculated <strong>turnaround</strong> — ⚡ <strong>Express</strong> or 🕐 <strong>Regular</strong> —
+     and keeps <strong>Continue</strong> disabled until every required field is filled (and the schedule meets the minimum lead time).</p>
   <ul>
-    <li><strong>Continue</strong> — saves the order details; they appear in the on-screen banner and on the receipt.</li>
-    <li><strong>Skip for now</strong> — keeps what was entered but leaves setup incomplete. Until setup is completed, adding products and choosing a customer are blocked (the banner flashes).</li>
+    <li><strong>Continue</strong> — saves the order details; they appear in a <strong>green summary banner</strong> above the cart and on the receipt. Tap <strong>Change</strong> there to edit them later.</li>
+    <li><strong>Skip for now</strong> — keeps what was entered but leaves setup incomplete; the banner turns <strong>amber</strong> with a <strong>Complete</strong> button. Until setup is finished, the product grid stays locked and choosing a customer is blocked.</li>
   </ul>
-  <div class="note">Order details survive a POS reload, and you can re-open the modal ("Change") to edit them later.</div>
+  <div class="note">A brand-new order (before you tap New Order or Settle Order) shows <strong>no banner</strong> — just a
+    locked product grid prompting "Tap New Order or Settle Order above to begin". Order details survive a POS reload.</div>
 
-  <h2 id="cart">5. In the cart: options, quantity, payment</h2>
+  <h2 id="settle">5. Settle Order &amp; Order List</h2>
+  <p>The other two navbar buttons:</p>
+  <ul>
+    <li><strong>Settle Order</strong> — opens a customer search for collecting what customers owe. Each customer row shows the
+        right action for them: <em>Settle orders</em>, <em>Settle invoices</em>, <em>Settle due amount</em>, or
+        <em>Deposit money</em>. If a customer is already on the order, they appear at the top with an <strong>Unselect</strong>
+        button and their settle buttons together.</li>
+    <li><strong>Order List</strong> — opens the Orders screen with an extra <strong>customer search bar</strong> on top, so you
+        can pull up one customer's orders. It opens unfiltered — it is <em>not</em> tied to the customer on the current order.</li>
+  </ul>
+  <div class="note"><strong>An order is either a sale or a settlement.</strong> Tapping <strong>New Order</strong> marks the
+    order as a sale and disables <strong>Settle Order</strong>; tapping <strong>Settle Order</strong> does the reverse. The
+    active button is highlighted. To do the other action, tap the <strong>＋</strong> at the top to start a fresh order first.</div>
+
+  <h2 id="cart">6. In the cart: options, quantity, payment</h2>
   <ul>
     <li><strong>Tap a laundry line</strong> to open its options (variants/attributes). Re-opening shows the previous choices; you can change them anytime.</li>
     <li><strong>Quantity / weight</strong> is set with the numpad. Wash-Dry-Fold is editable (per KG); Dry/Wet Clean and Shoe Clean stay at 1.</li>
@@ -122,7 +139,7 @@
     <li><strong>Payment is blocked</strong> if any laundry line still has unselected options, or if a Wash-Dry-Fold line is under the minimum weight (6KG for a single line, 4KG per line when there are several).</li>
   </ul>
 
-  <h2 id="receipt">6. The receipt</h2>
+  <h2 id="receipt">7. The receipt</h2>
   <p>A laundry order prints multiple copies, each cut separately by the thermal printer:</p>
   <ul>
     <li>one <strong>TRANSACTION COPY</strong> per service line (numbered "1/n", with that line boxed);</li>
@@ -132,7 +149,7 @@
   <p>Each receipt shows the customer, tags, service type, turnaround and the pickup/claim/delivery schedule, plus write-in
      count lines for Wash-Dry-Fold and Press.</p>
 
-  <h2 id="cash">7. Opening &amp; closing the register</h2>
+  <h2 id="cash">8. Opening &amp; closing the register</h2>
   <p>To enforce cash accountability, the cashier must <strong>count the drawer by denomination</strong> (the manual amount
      box is read-only):</p>
   <ul>
