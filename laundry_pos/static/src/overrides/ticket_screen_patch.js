@@ -24,6 +24,23 @@ patch(TicketScreen.prototype, {
         });
     },
 
+    /**
+     * No PARTIAL refunds — a line is always refunded for its FULL remaining
+     * quantity. We replace core's qty-from-buffer logic: any engagement snaps the
+     * line to its full refundable qty; only an explicit 0 clears it. (Full override
+     * of core `_setToRefundDetail`, not a super call — re-check on Odoo upgrades.)
+     */
+    _setToRefundDetail(toRefundDetail, buffer) {
+        if (toRefundDetail.destionation_order_id) {
+            return this.numberBuffer.reset();
+        }
+        toRefundDetail.refundableQty = toRefundDetail.line.qty - toRefundDetail.line.refundedQty;
+        if (toRefundDetail.refundableQty <= 0) {
+            return this.numberBuffer.reset();
+        }
+        toRefundDetail.qty = parseFloat(buffer) === 0 ? 0 : toRefundDetail.refundableQty;
+    },
+
     onLaundryCustomerInput(ev) {
         const val = ev.target.value;
         this.laundryState.customerQuery = val;

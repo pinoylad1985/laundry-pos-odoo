@@ -44,4 +44,13 @@ patch(Navbar.prototype, {
     get laundryActiveList() {
         return this.pos.router.state.current === "TicketScreen";
     },
+    // A refund in progress locks out BOTH New Order and Settle (an order can't be a
+    // refund AND a sale/settlement). The refund flow sets order.is_refund = true.
+    get laundryIsRefund() {
+        const order = this.pos.getOrder();
+        if (!order) {
+            return false;
+        }
+        return !!order.is_refund || (order.lines || []).some((l) => l.refunded_orderline_id);
+    },
 });

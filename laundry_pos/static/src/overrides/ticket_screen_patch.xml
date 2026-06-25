@@ -40,5 +40,12 @@
             <attribute name="t-att-class">{'laundry-order-search-disabled': laundryState.mode === 'customer'}</attribute>
         </xpath>
 
+        <!-- Refund note: we only allow FULL refunds, so reword the instruction. -->
+        <xpath expr="//div[@t-if='isOrderSynced' and hasclass('rounded-3')]" position="replace">
+            <div t-if="isOrderSynced" t-att-class="{ 'highlight text-danger': !getHasItemsToRefund() }" class="py-2 px-3 rounded-3 bg-view text-center">
+                Only full refund is allowed. Click Refund to proceed.
+            </div>
+        </xpath>
+
     </t>
 </templates>

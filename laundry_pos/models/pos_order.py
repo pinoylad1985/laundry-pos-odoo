@@ -25,18 +25,19 @@ class PosOrder(models.Model):
         ],
         string='Service Type',
     )
-    # List-view-only dropdown limited to Payment/Adjustment. Cashiers tag
-    # non-service orders here; it reads/writes laundry_service_type so the 5
-    # modal-driven service types can never be set by hand from the list.
-    laundry_manual_category = fields.Selection(
+    # Coarse classification for reporting: Order (a real service sale) /
+    # Payment (created via Settle Order) / Refund (a refund or a refunded order).
+    # Refund wins over Order, so a service order that gets refunded flips to Refund.
+    laundry_secondary_type = fields.Selection(
         selection=[
+            ('order', 'Order'),
             ('payment', 'Payment'),
             ('adjustment', 'Adjustment'),
+            ('refund', 'Refund'),
         ],
-        string='Payment / Adjustment',
-        compute='_compute_laundry_manual_category',
-        inverse='_inverse_laundry_manual_category',
-        store=False,
+        string='Secondary Type',
+        compute='_compute_laundry_secondary_type',
+        store=True,
     )
 
     # --- New Order details, set from the POS modal submit (see
@@ -91,19 +92,34 @@ class PosOrder(models.Model):
                 or legacy
             )
 
-    @api.depends('laundry_service_type')
-    def _compute_laundry_manual_category(self):
+    @api.depends('is_refund', 'laundry_service_type', 'lines.refund_orderline_ids',
+                 'lines.settled_order_id', 'lines.settled_invoice_id', 'lines.product_id')
+    def _compute_laundry_secondary_type(self):
+        service_types = ('dropoff', 'dropoff_delivery', 'pickup_delivery', 'locker', 'self_service')
         for order in self:
-            order.laundry_manual_category = (
-                order.laundry_service_type
-                if order.laundry_service_type in ('payment', 'adjustment')
-                else False
+            deposit = order.config_id.deposit_product_id
+            is_settle = any(
+                line.settled_order_id or line.settled_invoice_id
+                or (deposit and line.product_id == deposit)
+                for line in order.lines
             )
-
-    def _inverse_laundry_manual_category(self):
-        for order in self:
-            if order.laundry_manual_category:
-                order.laundry_service_type = order.laundry_manual_category
+            # "Refunded" = some line of this order has refund lines pointing at it. We depend
+            # on lines.refund_orderline_ids (not the NON-stored refund_orders_count) so the
+            # stored value actually recomputes when a refund is created against this order.
+            was_refunded = any(line.refund_orderline_ids for line in order.lines)
+            if order.is_refund or was_refunded:
+                # A refund, or an order that has been refunded → Refund (wins over Order).
+                order.laundry_secondary_type = 'refund'
+            elif is_settle or order.laundry_service_type == 'payment':
+                # Created via Settle Order (settles an order/invoice/deposit) or legacy payment tag.
+                order.laundry_secondary_type = 'payment'
+            elif order.laundry_service_type == 'adjustment':
+                # Legacy manual "Adjustment" tag — kept for prior orders.
+                order.laundry_secondary_type = 'adjustment'
+            elif order.laundry_service_type in service_types:
+                order.laundry_secondary_type = 'order'
+            else:
+                order.laundry_secondary_type = False
 
     @api.depends('partner_id.phone')
     def _compute_laundry_customer_phone(self):
