@@ -5,10 +5,35 @@
     text-align: left;
 }
 
-// The core print stylesheet pins the base size; match it so the printed ticket agrees.
+// The PRINTED ticket is a rasterized clone of an off-screen `.render-container .pos-receipt`.
+// Core pins that clone to font-size:14px (and width:266px) inside @media print, which is why
+// the screen preview grew but the paper stayed small. Force our sizes onto the clone here; the
+// extra `.render-container-parent` prefix outranks core's `.render-container .pos-receipt`
+// regardless of stylesheet load order.
 @media print {
-    .render-container .pos-receipt {
+    .render-container-parent .render-container .pos-receipt {
         font-size: 16px !important;
+    }
+    .render-container-parent .render-container .pos-receipt .orderline,
+    .render-container-parent .render-container .pos-receipt .pos-receipt-amount,
+    .render-container-parent .render-container .pos-receipt .paymentlines,
+    .render-container-parent .render-container .pos-receipt .laundry-details,
+    .render-container-parent .render-container .pos-receipt .laundry-attrs,
+    .render-container-parent .render-container .pos-receipt .laundry-attrs .attribute-line,
+    .render-container-parent .render-container .pos-receipt .info-list,
+    .render-container-parent .render-container .pos-receipt small {
+        font-size: 20px !important;
+    }
+    .render-container-parent .render-container .pos-receipt .pos-receipt-vat,
+    .render-container-parent .render-container .pos-receipt #order-date,
+    .render-container-parent .render-container .pos-receipt .cashier {
+        font-size: 17px !important;
+    }
+    .render-container-parent .render-container .pos-receipt .laundry-copy-header {
+        font-size: 22px !important;
+    }
+    .render-container-parent .render-container .pos-receipt .before-footer + .pos-receipt-center-align {
+        font-size: 14px !important;
     }
 }
 
