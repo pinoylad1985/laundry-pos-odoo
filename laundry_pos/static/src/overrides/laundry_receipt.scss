@@ -12,10 +12,10 @@
     }
 }
 
-// Make the reduced-size receipt bits a uniform size too (rate, small text).
+// Reduced-size receipt bits (rate, small text) — bumped to 20px.
 .pos-receipt .info-list,
 .pos-receipt small {
-    font-size: 16px !important;
+    font-size: 20px !important;
 }
 
 // Keep the configurable receipt "Footer" text (POS settings → Footer, rendered
@@ -35,18 +35,24 @@
     width: 40% !important;
 }
 
-// Ticket no. / Order date / Cashier: +1px from their current size.
+// Ticket no. / Order date / Cashier — all 17px.
 .pos-receipt .pos-receipt-vat,
-.pos-receipt #order-date {
-    font-size: 13px; // was 75% of base (~12px)
-}
+.pos-receipt #order-date,
 .pos-receipt .cashier {
-    font-size: 17px; // was base 16px
+    font-size: 17px;
 }
 
 // Remove the "Powered by Odoo" line.
 .pos-receipt .footer-powered-by {
     display: none;
+}
+
+// Body at 20px: product lines, totals/amounts, payment lines. (.laundry-details
+// and .laundry-attrs get 20px in their own rules below.)
+.pos-receipt .orderline,
+.pos-receipt .pos-receipt-amount,
+.pos-receipt .paymentlines {
+    font-size: 20px;
 }
 
 // Product main line: bold name + amount, with qty & amount aligned to the top.
@@ -67,7 +73,7 @@
 }
 .pos-receipt .laundry-attrs,
 .pos-receipt .laundry-attrs .attribute-line {
-    font-size: 16px;
+    font-size: 20px;
 }
 
 // Dashed separator at the TOP of each product line except the first, running
@@ -91,6 +97,7 @@
     width: 100%;
     margin-left: 0;
     padding-left: 0;
+    font-size: 20px;
 }
 
 // Locked turnaround attribute in the product configurator: grey out only its
