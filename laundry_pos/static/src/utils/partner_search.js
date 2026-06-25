@@ -16,8 +16,16 @@ const HAYSTACK_FIELDS = [
     "pos_contact_address",
 ];
 
+// Phone-ish fields, matched separately as digits-only so a numeric search ignores
+// spaces / dashes / parentheses (e.g. "01174" matches a stored "0 1174").
+const PHONE_FIELDS = ["phone", "mobile"];
+
 export function partnerHaystack(partner) {
     return HAYSTACK_FIELDS.map((f) => partner?.[f] || "").join(" ").toLowerCase();
+}
+
+export function partnerPhoneDigits(partner) {
+    return PHONE_FIELDS.map((f) => partner?.[f] || "").join(" ").replace(/\D/g, "");
 }
 
 export function partnerMatchesQuery(partner, query) {
@@ -26,7 +34,15 @@ export function partnerMatchesQuery(partner, query) {
         return false;
     }
     const hay = partnerHaystack(partner);
-    return words.every((w) => hay.includes(w));
+    const phoneDigits = partnerPhoneDigits(partner);
+    return words.every((w) => {
+        if (hay.includes(w)) {
+            return true;
+        }
+        // Numeric search → match the phone numbers ignoring separators.
+        const wDigits = w.replace(/\D/g, "");
+        return wDigits.length > 0 && phoneDigits.includes(wDigits);
+    });
 }
 
 // Fields used for the SERVER-side domain (each word must match one of them).
