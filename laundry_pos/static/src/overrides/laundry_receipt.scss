@@ -1,7 +1,9 @@
-// Laundry receipt styling. Body is bumped +2px (14 → 16) for readability; the
-// configurable "Footer" text is pinned back to its original size further down.
+// Laundry receipt styling. Font sizes are scaled up for readability; the printed
+// copy (.render-container) is forced to match the on-screen receipt, and the
+// configurable "Footer" text stays the smallest. (All sizes here are the base
+// values ×1.2.)
 .pos-receipt {
-    font-size: 16px;
+    font-size: 19.2px;
     text-align: left;
 }
 
@@ -12,7 +14,7 @@
 // regardless of stylesheet load order.
 @media print {
     .render-container-parent .render-container .pos-receipt {
-        font-size: 16px !important;
+        font-size: 19.2px !important;
     }
     .render-container-parent .render-container .pos-receipt .orderline,
     .render-container-parent .render-container .pos-receipt .pos-receipt-amount,
@@ -22,35 +24,35 @@
     .render-container-parent .render-container .pos-receipt .laundry-attrs .attribute-line,
     .render-container-parent .render-container .pos-receipt .info-list,
     .render-container-parent .render-container .pos-receipt small {
-        font-size: 20px !important;
+        font-size: 24px !important;
     }
     .render-container-parent .render-container .pos-receipt .pos-receipt-vat,
     .render-container-parent .render-container .pos-receipt #order-date,
     .render-container-parent .render-container .pos-receipt .cashier {
-        font-size: 17px !important;
+        font-size: 20.4px !important;
     }
     .render-container-parent .render-container .pos-receipt .laundry-copy-header {
-        font-size: 22px !important;
+        font-size: 26.4px !important;
     }
     .render-container-parent .render-container .pos-receipt .before-footer + .pos-receipt-center-align {
-        font-size: 14px !important;
+        font-size: 16.8px !important;
     }
 }
 
-// Reduced-size receipt bits (rate, small text) — bumped to 20px.
+// Reduced-size receipt bits (rate, small text).
 .pos-receipt .info-list,
 .pos-receipt small {
-    font-size: 20px !important;
+    font-size: 24px !important;
 }
 
-// Keep the configurable receipt "Footer" text (POS settings → Footer, rendered
-// right after the .before-footer hook) at its original 14px — everything else is +2px.
+// Configurable receipt "Footer" text (POS settings → Footer, rendered right after
+// the .before-footer hook) — the smallest text on the ticket.
 .pos-receipt .before-footer + .pos-receipt-center-align {
-    font-size: 14px;
+    font-size: 16.8px;
 }
 @media print {
     .render-container .pos-receipt .before-footer + .pos-receipt-center-align {
-        font-size: 14px !important;
+        font-size: 16.8px !important;
     }
 }
 
@@ -60,11 +62,11 @@
     width: 40% !important;
 }
 
-// Ticket no. / Order date / Cashier — all 17px.
+// Ticket no. / Order date / Cashier.
 .pos-receipt .pos-receipt-vat,
 .pos-receipt #order-date,
 .pos-receipt .cashier {
-    font-size: 17px;
+    font-size: 20.4px;
 }
 
 // Remove the "Powered by Odoo" line.
@@ -72,12 +74,12 @@
     display: none;
 }
 
-// Body at 20px: product lines, totals/amounts, payment lines. (.laundry-details
-// and .laundry-attrs get 20px in their own rules below.)
+// Body: product lines, totals/amounts, payment lines. (.laundry-details and
+// .laundry-attrs get the same size in their own rules below.)
 .pos-receipt .orderline,
 .pos-receipt .pos-receipt-amount,
 .pos-receipt .paymentlines {
-    font-size: 20px;
+    font-size: 24px;
 }
 
 // Product main line: bold name + amount, with qty & amount aligned to the top.
@@ -90,7 +92,7 @@
     align-items: flex-start !important;
 }
 
-// Per-line attributes: normal weight, same 14px as the product line (the
+// Per-line attributes: normal weight, same size as the product line (the
 // separator now sits between products).
 .pos-receipt .laundry-attrs {
     margin-top: 2px;
@@ -98,7 +100,7 @@
 }
 .pos-receipt .laundry-attrs,
 .pos-receipt .laundry-attrs .attribute-line {
-    font-size: 20px;
+    font-size: 24px;
 }
 
 // Dashed separator at the TOP of each product line except the first, running
@@ -122,7 +124,7 @@
     width: 100%;
     margin-left: 0;
     padding-left: 0;
-    font-size: 20px;
+    font-size: 24px;
 }
 
 // Locked turnaround attribute in the product configurator: grey out only its
@@ -137,7 +139,7 @@
 // ── Multi-copy ticket receipt ─────────────────────────────────────────────
 // Big header at the top of each copy (e.g. "1/4 TRANSACTION COPY").
 .pos-receipt .laundry-copy-header {
-    font-size: 22px;
+    font-size: 26.4px;
     font-weight: bold;
     text-align: center;
     margin: 4px 0 8px;

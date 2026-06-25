@@ -4,24 +4,24 @@
 
         <!-- Customer name: larger + bold -->
         <xpath expr="//span[@t-esc='order.partner_id.name']" position="attributes">
-            <attribute name="style">font-size: 20px; font-weight: bold;</attribute>
+            <attribute name="style">font-size: 24px; font-weight: bold;</attribute>
         </xpath>
 
         <!-- Phone: below the name, above the address. Match the name (larger + bold). -->
         <xpath expr="//div[@t-if='order.partner_id.name']" position="after">
-            <div t-if="order.partner_id.phone" style="font-size: 20px; font-weight: bold;">
+            <div t-if="order.partner_id.phone" style="font-size: 24px; font-weight: bold;">
                 <span t-esc="order.partner_id.phone"/>
             </div>
         </xpath>
 
         <!-- Customer address: match the name (larger + bold). -->
         <xpath expr="//div[@t-if='order.partner_id.pos_contact_address']" position="attributes">
-            <attribute name="style">font-size: 20px; font-weight: bold;</attribute>
+            <attribute name="style">font-size: 24px; font-weight: bold;</attribute>
         </xpath>
 
         <!-- Customer tags: below the address (larger + bold). Printed ONLY for Locker orders. -->
         <xpath expr="//div[@t-if='order.partner_id.pos_contact_address']" position="after">
-            <div t-if="laundryIsLocker and order.partner_id.pos_tag_names" style="font-size: 20px; font-weight: bold;">
+            <div t-if="laundryIsLocker and order.partner_id.pos_tag_names" style="font-size: 24px; font-weight: bold;">
                 <span t-esc="order.partner_id.pos_tag_names"/>
             </div>
         </xpath>
