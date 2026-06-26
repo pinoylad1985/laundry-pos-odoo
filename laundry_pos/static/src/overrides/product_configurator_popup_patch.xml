@@ -15,7 +15,7 @@
 
         <!-- Wash-Dry-Fold: enter the real weight; charged rounded UP to the nearest 0.5 KG. -->
         <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="after">
-            <div t-if="isLaundryWdf" class="laundry-weight mb-3">
+            <div t-if="isLaundryWdf" class="laundry-weight mb-3" style="max-width: 18rem;">
                 <label class="attribute_name mb-2 fw-bolder d-block">Weight (KG)</label>
                 <input type="number" step="0.1" min="0" inputmode="decimal"
                        class="form-control form-control-lg"

@@ -9,7 +9,7 @@ import {
     withTatTurnaround,
     buildConfiguredLineVals,
 } from "@laundry_pos/utils/laundry_products";
-import { setEditSelection } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { setEditSelection, setEditWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
 
 patch(OrderSummary.prototype, {
     /**
@@ -40,6 +40,7 @@ patch(OrderSummary.prototype, {
 
         // Pre-fill the configurator with the line's current selection.
         setEditSelection((orderline.attribute_value_ids || []).map((v) => v.id));
+        setEditWeight(orderline.qty); // pre-fill the WDF weight box with the line's current weight
         let payload;
         try {
             payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
@@ -47,6 +48,7 @@ patch(OrderSummary.prototype, {
             });
         } finally {
             setEditSelection(null);
+            setEditWeight(null);
         }
         if (!payload) {
             // Cancelled — select the line so it can still be adjusted/deleted.
@@ -66,6 +68,12 @@ patch(OrderSummary.prototype, {
         // Wash-Dry-Fold: the weight entered in the configurator (already rounded up
         // to 0.5 KG) becomes the qty; otherwise preserve the line's quantity.
         vals.qty = payload.laundryWeightKg || orderline.qty;
+        // Stamp the weight as the line's note so it shows in the cart and on the
+        // receipt; otherwise carry over any existing note.
+        const note = payload.laundryWeightKg ? `${payload.laundryWeightKg} KG` : orderline.customer_note;
+        if (note) {
+            vals.customer_note = note;
+        }
 
         // Swap the tapped line for the freshly configured one (the no-merge patch
         // keeps it as its own separate line).

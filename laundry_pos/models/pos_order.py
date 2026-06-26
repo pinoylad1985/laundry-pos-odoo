@@ -100,6 +100,8 @@ class PosOrder(models.Model):
         # (guarded — it may not exist without Studio) but DON'T depend on it: it's
         # historical data that never changes.
         has_studio_cat = 'x_studio_category' in self._fields
+        service_codes = ('dropoff', 'dropoff_delivery', 'pickup_delivery', 'locker', 'self_service')
+        service_labels = ('Drop-off', 'Drop-off & Delivery', 'Pickup & Delivery', 'Locker', 'Self-service')
         for order in self:
             deposit = order.config_id.deposit_product_id
             is_settle = any(
@@ -121,9 +123,12 @@ class PosOrder(models.Model):
             elif order.laundry_service_type == 'adjustment' or studio_cat == 'Adjustment':
                 # Adjustment (new or legacy Studio) — kept for prior orders.
                 order.laundry_secondary_type = 'adjustment'
-            else:
-                # Everything else is a normal sale.
+            elif order.laundry_service_type in service_codes or studio_cat in service_labels:
+                # Has a real service type (new module or legacy Studio label) → a sale.
                 order.laundry_secondary_type = 'order'
+            else:
+                # No category at all → leave blank (uncategorized).
+                order.laundry_secondary_type = False
 
     @api.depends('partner_id.phone')
     def _compute_laundry_customer_phone(self):

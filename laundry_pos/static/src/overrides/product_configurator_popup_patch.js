@@ -16,10 +16,18 @@ export function setEditSelection(ids) {
     editSelectionIds = ids && ids.length ? ids : null;
 }
 
+// Current weight (kg) of the line being re-configured, so the Wash-Dry-Fold weight
+// input opens pre-filled. Set by order_summary_patch before opening the configurator.
+let editWeightKg = null;
+export function setEditWeight(kg) {
+    editWeightKg = kg || null;
+}
+
 patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
-        this.laundryKgState = useState({ kg: "" }); // Wash-Dry-Fold weight input
+        // Wash-Dry-Fold weight input — pre-filled with the line's current weight on re-open.
+        this.laundryKgState = useState({ kg: editWeightKg != null ? String(editWeightKg) : "" });
         this._laundryPreselectEdit(); // restore the line's previous choices
         this._laundryPreselectTat(); // turnaround follows the order's TAT
     },
