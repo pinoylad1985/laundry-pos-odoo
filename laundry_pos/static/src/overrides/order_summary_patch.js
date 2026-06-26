@@ -63,7 +63,9 @@ patch(OrderSummary.prototype, {
         );
         const vals = buildConfiguredLineVals(this.pos, productTemplate, selectedIds);
         if (!vals.product_id) vals.product_id = orderline.product_id;
-        vals.qty = orderline.qty; // preserve quantity (e.g. merged Press lines)
+        // Wash-Dry-Fold: the weight entered in the configurator (already rounded up
+        // to 0.5 KG) becomes the qty; otherwise preserve the line's quantity.
+        vals.qty = payload.laundryWeightKg || orderline.qty;
 
         // Swap the tapped line for the freshly configured one (the no-merge patch
         // keeps it as its own separate line).

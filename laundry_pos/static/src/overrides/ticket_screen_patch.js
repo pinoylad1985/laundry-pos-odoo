@@ -41,6 +41,25 @@ patch(TicketScreen.prototype, {
         toRefundDetail.qty = parseFloat(buffer) === 0 ? 0 : toRefundDetail.refundableQty;
     },
 
+    /**
+     * Click "Refund" → refund the WHOLE order: every line at its full remaining
+     * quantity, with no per-line selection or quantity entry needed.
+     */
+    async onDoRefund() {
+        const order = this.getSelectedOrder();
+        if (order) {
+            for (const line of order.getOrderlines()) {
+                const detail = this.getToRefundDetail(line);
+                if (detail.destionation_order_id) {
+                    continue; // already linked to a refund — leave it
+                }
+                const full = line.qty - line.refundedQty;
+                detail.qty = full > 0 ? full : 0;
+            }
+        }
+        return super.onDoRefund(...arguments);
+    },
+
     onLaundryCustomerInput(ev) {
         const val = ev.target.value;
         this.laundryState.customerQuery = val;

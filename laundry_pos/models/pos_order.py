@@ -95,7 +95,11 @@ class PosOrder(models.Model):
     @api.depends('is_refund', 'laundry_service_type', 'lines.refund_orderline_ids',
                  'lines.settled_order_id', 'lines.settled_invoice_id', 'lines.product_id')
     def _compute_laundry_secondary_type(self):
-        service_types = ('dropoff', 'dropoff_delivery', 'pickup_delivery', 'locker', 'self_service')
+        # Legacy orders carry their category on the Studio field x_studio_category
+        # ("Payment" / "Adjustment" / the 5 service-type labels). Read it when present
+        # (guarded — it may not exist without Studio) but DON'T depend on it: it's
+        # historical data that never changes.
+        has_studio_cat = 'x_studio_category' in self._fields
         for order in self:
             deposit = order.config_id.deposit_product_id
             is_settle = any(
@@ -107,19 +111,19 @@ class PosOrder(models.Model):
             # on lines.refund_orderline_ids (not the NON-stored refund_orders_count) so the
             # stored value actually recomputes when a refund is created against this order.
             was_refunded = any(line.refund_orderline_ids for line in order.lines)
+            studio_cat = order.x_studio_category if has_studio_cat else False
             if order.is_refund or was_refunded:
-                # A refund, or an order that has been refunded → Refund (wins over Order).
+                # A refund, or an order that has been refunded → Refund (wins over all).
                 order.laundry_secondary_type = 'refund'
-            elif is_settle or order.laundry_service_type == 'payment':
-                # Created via Settle Order (settles an order/invoice/deposit) or legacy payment tag.
+            elif is_settle or order.laundry_service_type == 'payment' or studio_cat == 'Payment':
+                # Settle Order (new) or a Payment tag (new or legacy Studio).
                 order.laundry_secondary_type = 'payment'
-            elif order.laundry_service_type == 'adjustment':
-                # Legacy manual "Adjustment" tag — kept for prior orders.
+            elif order.laundry_service_type == 'adjustment' or studio_cat == 'Adjustment':
+                # Adjustment (new or legacy Studio) — kept for prior orders.
                 order.laundry_secondary_type = 'adjustment'
-            elif order.laundry_service_type in service_types:
-                order.laundry_secondary_type = 'order'
             else:
-                order.laundry_secondary_type = False
+                # Everything else is a normal sale.
+                order.laundry_secondary_type = 'order'
 
     @api.depends('partner_id.phone')
     def _compute_laundry_customer_phone(self):

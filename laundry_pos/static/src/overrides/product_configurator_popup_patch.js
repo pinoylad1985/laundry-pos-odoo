@@ -1,7 +1,9 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
+import { useState } from "@odoo/owl";
 import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
+import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 function isTurnaround(attrLine) {
     return String(attrLine?.attribute_id?.name || "").startsWith("Turnaround");
@@ -17,8 +19,30 @@ export function setEditSelection(ids) {
 patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
+        this.laundryKgState = useState({ kg: "" }); // Wash-Dry-Fold weight input
         this._laundryPreselectEdit(); // restore the line's previous choices
         this._laundryPreselectTat(); // turnaround follows the order's TAT
+    },
+
+    // True when configuring a Wash-Dry-Fold product (drives the KG weight input).
+    get isLaundryWdf() {
+        return laundryCodeForProduct(this.props.productTemplate) === "wdf";
+    },
+
+    // The entered weight rounded UP to the nearest 0.5 KG (0 if blank/invalid).
+    get laundryRoundedKg() {
+        const kg = parseFloat(this.laundryKgState.kg);
+        return kg > 0 ? Math.ceil(kg * 2) / 2 : 0;
+    },
+
+    // Ride the rounded weight along in the configurator payload, so the caller
+    // (OrderSummary._laundryConfigureLine) can apply it as the line quantity.
+    computePayload() {
+        const payload = super.computePayload();
+        if (this.isLaundryWdf && this.laundryRoundedKg > 0) {
+            payload.laundryWeightKg = this.laundryRoundedKg;
+        }
+        return payload;
     },
 
     /**
