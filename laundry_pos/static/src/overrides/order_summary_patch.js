@@ -40,7 +40,7 @@ patch(OrderSummary.prototype, {
 
         // Pre-fill the configurator with the line's current selection.
         setEditSelection((orderline.attribute_value_ids || []).map((v) => v.id));
-        setEditWeight(orderline.qty); // pre-fill the WDF weight box with the line's current weight
+        setEditWeight(orderline.laundry_actual_weight); // pre-fill the WDF box with the actual weight
         let payload;
         try {
             payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
@@ -65,14 +65,14 @@ patch(OrderSummary.prototype, {
         );
         const vals = buildConfiguredLineVals(this.pos, productTemplate, selectedIds);
         if (!vals.product_id) vals.product_id = orderline.product_id;
-        // Wash-Dry-Fold: the weight entered in the configurator (already rounded up
-        // to 0.5 KG) becomes the qty; otherwise preserve the line's quantity.
+        // Wash-Dry-Fold: the BILLED qty is the rounded-up weight; otherwise preserve
+        // the line's quantity.
         vals.qty = payload.laundryWeightKg || orderline.qty;
-        // Stamp the weight as the line's note so it shows in the cart and on the
-        // receipt; otherwise carry over any existing note.
-        const note = payload.laundryWeightKg ? `${payload.laundryWeightKg} KG` : orderline.customer_note;
-        if (note) {
-            vals.customer_note = note;
+        // Keep the ACTUAL entered weight on the line — shown as-is like a variant
+        // attribute in the cart and receipt (see order_line_patch).
+        const actual = payload.laundryActualWeight || orderline.laundry_actual_weight;
+        if (actual) {
+            vals.laundry_actual_weight = actual;
         }
 
         // Swap the tapped line for the freshly configured one (the no-merge patch

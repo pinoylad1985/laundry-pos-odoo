@@ -25,6 +25,15 @@ patch(Orderline.prototype, {
         if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
+        // Wash-Dry-Fold: show the ACTUAL entered weight as the first attribute line
+        // (as-is — the qty/billing uses the rounded-up value).
+        if (code === "wdf" && line.laundry_actual_weight) {
+            const disp = String(Math.round(line.laundry_actual_weight * 100) / 100);
+            vals.laundryAttributes = [
+                { name: "Actual Weight (KG)", value: disp },
+                ...vals.laundryAttributes,
+            ];
+        }
         // WDF/Press get write-in count lines on the receipt (Sorting at the top;
         // Folding for WDF / Press count for Press at the bottom).
         vals.laundryWdf = code === "wdf";

@@ -146,3 +146,19 @@ class PosOrder(models.Model):
     # NOTE: No _load_pos_data_fields override needed here.
     # pos.order's default returns [] which means Odoo reads ALL fields via read([]).
     # Our selection fields are automatically included in that full read.
+
+
+class PosOrderLine(models.Model):
+    _inherit = 'pos.order.line'
+
+    # The real weighed value the cashier enters in the WDF configurator, shown
+    # as-is (like a variant attribute) in the cart/receipt. The line QTY is the
+    # billed value (this rounded UP to the nearest 0.5 kg).
+    laundry_actual_weight = fields.Float(string='Actual Weight (KG)')
+
+    @api.model
+    def _load_pos_data_fields(self, config):
+        fields_list = super()._load_pos_data_fields(config)
+        if 'laundry_actual_weight' not in fields_list:
+            fields_list.append('laundry_actual_weight')
+        return fields_list

@@ -43,12 +43,14 @@ patch(ProductConfiguratorPopup.prototype, {
         return kg > 0 ? Math.ceil(kg * 2) / 2 : 0;
     },
 
-    // Ride the rounded weight along in the configurator payload, so the caller
-    // (OrderSummary._laundryConfigureLine) can apply it as the line quantity.
+    // Ride the weight along in the configurator payload: the ACTUAL entered value
+    // (shown as-is, like an attribute) plus the rounded value that becomes the qty.
     computePayload() {
         const payload = super.computePayload();
-        if (this.isLaundryWdf && this.laundryRoundedKg > 0) {
-            payload.laundryWeightKg = this.laundryRoundedKg;
+        const actual = parseFloat(this.laundryKgState.kg);
+        if (this.isLaundryWdf && actual > 0) {
+            payload.laundryActualWeight = actual;            // entered value, shown as-is
+            payload.laundryWeightKg = this.laundryRoundedKg; // rounded up to 0.5 → billed qty
         }
         return payload;
     },
