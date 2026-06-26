@@ -83,6 +83,11 @@ patch(OrderSummary.prototype, {
         } else if (typeof orderline.delete === "function") {
             orderline.delete();
         }
-        await this.pos.addLineToCurrentOrder(vals, {}, false);
+        const newLine = await this.pos.addLineToCurrentOrder(vals, {}, false);
+        // Make sure the weight lands on the new line so it shows immediately the
+        // FIRST time (not only after re-opening the configurator).
+        if (newLine && actual) {
+            newLine.laundry_actual_weight = actual;
+        }
     },
 });

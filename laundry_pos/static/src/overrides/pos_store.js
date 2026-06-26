@@ -6,6 +6,7 @@ import { AlertDialog, ConfirmationDialog } from "@web/core/confirmation_dialog/c
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
+import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 
 patch(PosStore.prototype, {
     /**
@@ -20,6 +21,15 @@ patch(PosStore.prototype, {
             order._needsLaundrySetup = true;
         }
         return order;
+    },
+
+    /**
+     * Creating/configuring a line is a legitimate path for setting a Wash-Dry-Fold
+     * quantity (the numpad is not — see pos_order_line_patch). Run line creation
+     * inside the guard so WDF qty in `vals` is honored.
+     */
+    async addLineToCurrentOrder() {
+        return allowWdfQty(() => super.addLineToCurrentOrder(...arguments));
     },
 
     /**
@@ -116,25 +126,22 @@ patch(PosStore.prototype, {
             const under = wdfLines.filter((l) => (l.qty || 0) < minKg);
             if (under.length) {
                 const dialog = this.dialog || this.env?.services?.dialog;
-                const payArgs = arguments;
                 dialog?.add(ConfirmationDialog, {
                     title: "Minimum Wash-Dry-Fold weight",
                     body:
                         wdfLines.length === 1
-                            ? "Wash-Dry-Fold requires at least 6KG. Click here to set it to 6KG, or cancel to edit it yourself."
-                            : "Each Wash-Dry-Fold line requires at least 4KG. Click here to bump the short line(s) to 4KG, or cancel to edit them yourself.",
+                            ? "Wash-Dry-Fold requires at least 6KG. Click here to set it to 6KG."
+                            : "Each Wash-Dry-Fold line requires at least 4KG. Click here to bump the short line(s) to 4KG.",
                     confirmLabel: "Click here",
                     confirm: () => {
-                        for (const l of under) {
-                            // Only bump the BILLED qty to the minimum — leave the
-                            // entered Actual Weight untouched.
-                            if (typeof l.setQuantity === "function") {
+                        // Only bump the BILLED qty to the minimum — leave the entered
+                        // Actual Weight untouched. Don't auto-proceed to payment: the
+                        // cashier reviews and clicks Pay again.
+                        allowWdfQty(() => {
+                            for (const l of under) {
                                 l.setQuantity(minKg);
-                            } else {
-                                l.qty = minKg;
                             }
-                        }
-                        this.pay(...payArgs); // re-validate; weights now pass → goes to payment
+                        });
                     },
                 });
                 return;

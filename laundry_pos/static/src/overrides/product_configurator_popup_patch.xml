@@ -20,8 +20,7 @@
                 <input type="number" step="0.1" min="0" inputmode="decimal"
                        class="form-control form-control-lg"
                        placeholder="Enter actual weight in KG"
-                       t-att-value="laundryKgState.kg"
-                       t-on-input="(ev) => this.laundryKgState.kg = ev.target.value"/>
+                       t-model="laundryKgState.kg"/>
                 <small t-if="laundryRoundedKg" class="text-muted">
                     Billed at <b><t t-esc="laundryRoundedKg"/> KG</b> (rounded up to the nearest 0.5 KG).
                 </small>
