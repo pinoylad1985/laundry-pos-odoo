@@ -19,11 +19,12 @@
                 <label class="attribute_name mb-2 fw-bolder d-block">Actual Weight (KG)</label>
                 <input type="number" step="0.1" min="0" inputmode="decimal"
                        class="form-control form-control-lg"
+                       t-att-class="{ 'is-invalid': laundryKgState.invalid }"
                        placeholder="Enter actual weight in KG"
-                       t-model="laundryKgState.kg"/>
-                <small t-if="laundryRoundedKg" class="text-muted">
-                    Billed at <b><t t-esc="laundryRoundedKg"/> KG</b> (rounded up to the nearest 0.5 KG).
-                </small>
+                       t-ref="laundryWeightInput"
+                       t-att-value="laundryKgState.kg"
+                       t-on-input="(ev) => this.onLaundryWeightInput(ev)"/>
+                <small t-if="laundryKgState.invalid" class="text-danger">Actual Weight is required.</small>
             </div>
         </xpath>
     </t>

@@ -4,7 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
 import { AlertDialog, ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
-import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { lineNeedsConfig, laundryCodeForProduct, wdfBilledQty } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
 import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 
@@ -122,24 +122,28 @@ patch(PosStore.prototype, {
             (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
         );
         if (wdfLines.length) {
-            const minKg = wdfLines.length === 1 ? 6 : 4;
-            const under = wdfLines.filter((l) => (l.qty || 0) < minKg);
-            if (under.length) {
+            // Billed qty for a WDF line = its actual weight rounded UP to 0.5, but never
+            // below the current minimum (6KG single / 4KG when 2+). This bumps short
+            // lines UP and brings a previously force-bumped line back DOWN when the
+            // minimum changes (a WDF line added/removed in the cart flips the minimum).
+            const billedQty = (l) => wdfBilledQty(l.laundry_actual_weight, wdfLines.length);
+            const wrong = wdfLines.filter((l) => Math.abs((l.qty || 0) - billedQty(l)) > 0.001);
+            if (wrong.length) {
                 const dialog = this.dialog || this.env?.services?.dialog;
                 dialog?.add(ConfirmationDialog, {
                     title: "Minimum Wash-Dry-Fold weight",
                     body:
                         wdfLines.length === 1
-                            ? "Wash-Dry-Fold requires at least 6KG. Click here to set it to 6KG."
-                            : "Each Wash-Dry-Fold line requires at least 4KG. Click here to bump the short line(s) to 4KG.",
+                            ? "Wash-Dry-Fold has a 6KG minimum. Click here to set the billed weight."
+                            : "Wash-Dry-Fold has a 4KG minimum per line. Click here to set the billed weights.",
                     confirmLabel: "Click here",
                     confirm: () => {
-                        // Only bump the BILLED qty to the minimum — leave the entered
-                        // Actual Weight untouched. Don't auto-proceed to payment: the
-                        // cashier reviews and clicks Pay again.
+                        // Set each line's BILLED qty to satisfy the current minimum;
+                        // leave the entered Actual Weight untouched. Don't auto-proceed —
+                        // the cashier reviews and clicks Pay again.
                         allowWdfQty(() => {
-                            for (const l of under) {
-                                l.setQuantity(minKg);
+                            for (const l of wdfLines) {
+                                l.setQuantity(billedQty(l));
                             }
                         });
                     },

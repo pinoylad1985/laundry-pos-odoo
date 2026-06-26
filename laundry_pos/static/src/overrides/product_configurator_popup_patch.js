@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import { useState } from "@odoo/owl";
+import { useState, useRef } from "@odoo/owl";
 import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
 import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
@@ -27,7 +27,11 @@ patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
         // Wash-Dry-Fold weight input — pre-filled with the line's current weight on re-open.
-        this.laundryKgState = useState({ kg: editWeightKg != null ? String(editWeightKg) : "" });
+        this.laundryKgState = useState({
+            kg: editWeightKg != null ? String(editWeightKg) : "",
+            invalid: false,
+        });
+        this.laundryKgRef = useRef("laundryWeightInput");
         this._laundryPreselectEdit(); // restore the line's previous choices
         this._laundryPreselectTat(); // turnaround follows the order's TAT
     },
@@ -37,17 +41,39 @@ patch(ProductConfiguratorPopup.prototype, {
         return laundryCodeForProduct(this.props.productTemplate) === "wdf";
     },
 
+    // The weight currently in the input, read straight from the DOM so it's reliable
+    // at confirm time (avoids a reactive-state timing miss on the first open).
+    get laundryEnteredKg() {
+        const el = this.laundryKgRef?.el;
+        return parseFloat(el ? el.value : this.laundryKgState.kg);
+    },
+
+    onLaundryWeightInput(ev) {
+        this.laundryKgState.kg = ev.target.value;
+        this.laundryKgState.invalid = false;
+    },
+
     // The entered weight rounded UP to the nearest 0.5 KG (0 if blank/invalid).
     get laundryRoundedKg() {
-        const kg = parseFloat(this.laundryKgState.kg);
+        const kg = this.laundryEnteredKg;
         return kg > 0 ? Math.ceil(kg * 2) / 2 : 0;
+    },
+
+    // Actual Weight is REQUIRED for Wash-Dry-Fold — block Add without a valid value.
+    confirm() {
+        if (this.isLaundryWdf && !(this.laundryEnteredKg > 0)) {
+            this.laundryKgState.invalid = true;
+            this.laundryKgRef?.el?.focus?.();
+            return;
+        }
+        return super.confirm(...arguments);
     },
 
     // Ride the weight along in the configurator payload: the ACTUAL entered value
     // (shown as-is, like an attribute) plus the rounded value that becomes the qty.
     computePayload() {
         const payload = super.computePayload();
-        const actual = parseFloat(this.laundryKgState.kg);
+        const actual = this.laundryEnteredKg;
         if (this.isLaundryWdf && actual > 0) {
             payload.laundryActualWeight = actual;            // entered value, shown as-is
             payload.laundryWeightKg = this.laundryRoundedKg; // rounded up to 0.5 → billed qty

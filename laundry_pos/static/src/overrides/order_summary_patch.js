@@ -8,8 +8,10 @@ import {
     laundryCodeForProduct,
     withTatTurnaround,
     buildConfiguredLineVals,
+    wdfBilledQty,
 } from "@laundry_pos/utils/laundry_products";
 import { setEditSelection, setEditWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 
 patch(OrderSummary.prototype, {
     /**
@@ -89,5 +91,24 @@ patch(OrderSummary.prototype, {
         if (newLine && actual) {
             newLine.laundry_actual_weight = actual;
         }
+        // Apply the WDF minimum-weight billing now (it's re-checked again at payment
+        // in case WDF lines are added/removed directly in the cart).
+        this._laundryApplyWdfBilling();
+    },
+
+    // Set every CONFIGURED Wash-Dry-Fold line's qty to its billed value — the rounded
+    // actual weight or the per-line minimum (6KG single / 4KG when 2+), whichever is
+    // higher. Unconfigured lines are left until they get a weight.
+    _laundryApplyWdfBilling() {
+        const wdf = (this.currentOrder?.lines || []).filter(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
+        );
+        allowWdfQty(() => {
+            for (const l of wdf) {
+                if (l.laundry_actual_weight) {
+                    l.setQuantity(wdfBilledQty(l.laundry_actual_weight, wdf.length));
+                }
+            }
+        });
     },
 });
