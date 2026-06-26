@@ -2,7 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
-import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { AlertDialog, ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
@@ -113,14 +113,29 @@ patch(PosStore.prototype, {
         );
         if (wdfLines.length) {
             const minKg = wdfLines.length === 1 ? 6 : 4;
-            if (wdfLines.some((l) => (l.qty || 0) < minKg)) {
+            const under = wdfLines.filter((l) => (l.qty || 0) < minKg);
+            if (under.length) {
                 const dialog = this.dialog || this.env?.services?.dialog;
-                dialog?.add(AlertDialog, {
+                const payArgs = arguments;
+                dialog?.add(ConfirmationDialog, {
                     title: "Minimum Wash-Dry-Fold weight",
                     body:
                         wdfLines.length === 1
-                            ? "Wash-Dry-Fold requires at least 6KG."
-                            : `Each Wash-Dry-Fold line requires at least 4KG (you have ${wdfLines.length} lines).`,
+                            ? "Wash-Dry-Fold requires at least 6KG. Click here to set it to 6KG, or cancel to edit it yourself."
+                            : "Each Wash-Dry-Fold line requires at least 4KG. Click here to bump the short line(s) to 4KG, or cancel to edit them yourself.",
+                    confirmLabel: "Click here",
+                    confirm: () => {
+                        for (const l of under) {
+                            // Only bump the BILLED qty to the minimum — leave the
+                            // entered Actual Weight untouched.
+                            if (typeof l.setQuantity === "function") {
+                                l.setQuantity(minKg);
+                            } else {
+                                l.qty = minKg;
+                            }
+                        }
+                        this.pay(...payArgs); // re-validate; weights now pass → goes to payment
+                    },
                 });
                 return;
             }

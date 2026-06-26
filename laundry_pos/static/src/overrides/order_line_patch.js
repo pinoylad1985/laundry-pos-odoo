@@ -34,6 +34,14 @@ patch(Orderline.prototype, {
                 ...vals.laundryAttributes,
             ];
         }
+        // Wash-Dry-Fold: show the per-KG qty with up to ONE decimal (2.5, not 2.50).
+        if (code === "wdf") {
+            const rounded = Math.round((line.qty || 0) * 10) / 10;
+            const [unit, dec] = String(rounded).split(".");
+            const point = line.getQuantityStr().decimalPoint || ".";
+            vals.unitPart = unit;
+            vals.decimalPart = dec ? `${point}${dec}` : "";
+        }
         // WDF/Press get write-in count lines on the receipt (Sorting at the top;
         // Folding for WDF / Press count for Press at the bottom).
         vals.laundryWdf = code === "wdf";
