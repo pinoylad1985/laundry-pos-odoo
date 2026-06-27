@@ -12,23 +12,25 @@ patch(Orderline.prototype, {
         const vals = super.lineScreenValues;
         const line = this.props.line;
 
-        // Show every attribute in BOTH the cart and the receipt (Turnaround included;
-        // it's muted in the cart but printed normally).
-        vals.laundryAttributes = (line.attribute_value_ids || []).map((av) => ({
-            name: this._laundryAttrName(av.attribute_id?.name || ""),
-            value: av.name || "",
-        }));
+        // Attributes show in cart + receipt; Turnaround is dropped from the RECEIPT
+        // (already in the order-details header) but kept in the cart.
+        vals.laundryAttributes = (line.attribute_value_ids || [])
+            .map((av) => ({
+                name: this._laundryAttrName(av.attribute_id?.name || ""),
+                value: av.name || "",
+            }))
+            .filter((a) => !(vals.isReceipt && a.name === "Turnaround"));
 
         const code = laundryCodeForProduct(line.product_id?.product_tmpl_id);
         if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
-        // Wash-Dry-Fold: show the ACTUAL entered weight as the first attribute line
-        // (as-is — the qty/billing uses the rounded-up value).
+        // Wash-Dry-Fold: show the ACTUAL entered weight as the FIRST attribute line,
+        // formatted "Actual Weight: <value> KG" (the qty/billing uses the rounded value).
         if (code === "wdf" && line.laundry_actual_weight) {
             const disp = String(Math.round(line.laundry_actual_weight * 100) / 100);
             vals.laundryAttributes = [
-                { name: "Actual Weight (KG)", value: disp },
+                { name: "Actual Weight", value: `${disp} KG` },
                 ...vals.laundryAttributes,
             ];
         }

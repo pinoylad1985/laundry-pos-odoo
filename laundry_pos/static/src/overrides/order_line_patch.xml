@@ -16,8 +16,8 @@
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
-                     class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' and !vals.isReceipt }">
-                    <t t-if="vals.isReceipt">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
+                     class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' }">
+                    <t t-if="vals.isReceipt and a.name !== 'Actual Weight'">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
                 </div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">

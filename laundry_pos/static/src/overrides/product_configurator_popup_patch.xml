@@ -13,17 +13,22 @@
             <attribute name="t-att-class">{ 'laundry-locked-attr': isTurnaroundAttr(attribute) }</attribute>
         </xpath>
 
-        <!-- Wash-Dry-Fold: enter the real weight; charged rounded UP to the nearest 0.5 KG. -->
-        <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="after">
-            <div t-if="isLaundryWdf" class="laundry-weight mb-3" style="max-width: 18rem;">
-                <label class="attribute_name mb-2 fw-bolder d-block">Actual Weight (KG)</label>
-                <input type="number" step="0.1" min="0" inputmode="decimal"
-                       class="form-control form-control-lg"
-                       t-att-class="{ 'is-invalid': laundryKgState.invalid }"
-                       placeholder="Enter actual weight in KG"
-                       t-ref="laundryWeightInput"
-                       t-att-value="laundryKgState.kg"
-                       t-on-input="(ev) => this.onLaundryWeightInput(ev)"/>
+        <!-- Wash-Dry-Fold: enter the real weight at the TOP, inline "Actual Weight: [box] KG".
+             Billed rounded UP to the nearest 0.5 KG. -->
+        <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="before">
+            <div t-if="isLaundryWdf" class="laundry-weight mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="attribute_name fw-bolder mb-0 text-nowrap">Actual Weight:</label>
+                    <input type="number" step="0.1" min="0" inputmode="decimal"
+                           class="form-control form-control-lg"
+                           style="width: 6rem;"
+                           t-att-class="{ 'is-invalid': laundryKgState.invalid }"
+                           placeholder="0.0"
+                           t-ref="laundryWeightInput"
+                           t-att-value="laundryKgState.kg"
+                           t-on-input="(ev) => this.onLaundryWeightInput(ev)"/>
+                    <span class="fw-bolder">KG</span>
+                </div>
                 <small t-if="laundryKgState.invalid" class="text-danger">Actual Weight is required.</small>
             </div>
         </xpath>
