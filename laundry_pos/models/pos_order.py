@@ -81,8 +81,8 @@ class PosOrder(models.Model):
     laundry_staff = fields.Selection(
         selection=[
             ('Maan', 'Maan'), ('Jane', 'Jane'), ('Rose', 'Rose'), ('Yumi', 'Yumi'),
-            ('Beth', 'Beth'), ('Luisa', 'Luisa'), ('Nita', 'Nita'), ('Emy', 'Emy'),
-            ('Lester', 'Lester'), ('Ruby', 'Ruby'), ('Tesheil', 'Tesheil'), ('Mark', 'Mark'),
+            ('Beth', 'Beth'), ('Nita', 'Nita'), ('Emy', 'Emy'),
+            ('Ruby', 'Ruby'), ('Tesheil', 'Tesheil'), ('Mark', 'Mark'),
             ('Jepoy', 'Jepoy'), ('Mona', 'Mona'), ('Tricia', 'Tricia'),
         ],
         string='Staff',
