@@ -1,26 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <!--
-        Add laundry columns to the standard POS Orders list:
-        - laundry_service_type / laundry_secondary_type: read-only classification.
-        - laundry_status / laundry_staff / laundry_folding_time: back-office workflow,
-          editable inline (migrated off the Studio x_studio_* fields). The list is made
-          inline-editable (editable="bottom") so these can be set directly in the row.
+        Replace the Studio x_studio_* columns on the POS Orders list with the module's
+        laundry_* fields, in the same positions:
+          x_studio_status        -> laundry_status (read-only, automation-driven)
+          x_studio_category      -> laundry_service_type (+ laundry_secondary_type)
+          x_studio_due_datetime  -> laundry_due_datetime
+          x_studio_staff         -> laundry_staff (editable)
+          x_studio_folding_time  -> laundry_folding_time (editable)
+        The Studio columns are hidden (the fields still exist for other Studio views).
+
+        ⚠ priority 10010 makes this view apply AFTER the Studio view (priority 10000) so the
+        x_studio_* fields exist to target. This therefore DEPENDS on those Studio fields — it
+        must be reverted before the x_studio_* fields are ever deleted, or the list breaks.
     -->
     <record id="view_pos_order_tree_laundry" model="ir.ui.view">
         <field name="name">pos.order.list.laundry</field>
         <field name="model">pos.order</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="priority">10010</field>
         <field name="arch" type="xml">
             <xpath expr="//list" position="attributes">
                 <attribute name="editable">bottom</attribute>
+                <attribute name="default_order">laundry_due_datetime asc</attribute>
             </xpath>
-            <xpath expr="//list" position="inside">
+
+            <!-- Status -->
+            <xpath expr="//field[@name='x_studio_status']" position="after">
+                <field name="laundry_status" optional="show" readonly="1"/>
+            </xpath>
+            <xpath expr="//field[@name='x_studio_status']" position="attributes">
+                <attribute name="column_invisible">True</attribute>
+            </xpath>
+
+            <!-- Category -> Service Type + Secondary Type -->
+            <xpath expr="//field[@name='x_studio_category']" position="after">
                 <field name="laundry_service_type" optional="show" readonly="1"/>
                 <field name="laundry_secondary_type" optional="show" readonly="1"/>
-                <field name="laundry_status" optional="show" readonly="1"/>
+            </xpath>
+            <xpath expr="//field[@name='x_studio_category']" position="attributes">
+                <attribute name="column_invisible">True</attribute>
+            </xpath>
+
+            <!-- Due Datetime -->
+            <xpath expr="//field[@name='x_studio_due_datetime']" position="after">
+                <field name="laundry_due_datetime" optional="show" readonly="1"/>
+            </xpath>
+            <xpath expr="//field[@name='x_studio_due_datetime']" position="attributes">
+                <attribute name="column_invisible">True</attribute>
+            </xpath>
+
+            <!-- Staff -->
+            <xpath expr="//field[@name='x_studio_staff']" position="after">
                 <field name="laundry_staff" optional="show"/>
+            </xpath>
+            <xpath expr="//field[@name='x_studio_staff']" position="attributes">
+                <attribute name="column_invisible">True</attribute>
+            </xpath>
+
+            <!-- Folding Time -->
+            <xpath expr="//field[@name='x_studio_folding_time']" position="after">
                 <field name="laundry_folding_time" optional="show"/>
+            </xpath>
+            <xpath expr="//field[@name='x_studio_folding_time']" position="attributes">
+                <attribute name="column_invisible">True</attribute>
             </xpath>
         </field>
     </record>

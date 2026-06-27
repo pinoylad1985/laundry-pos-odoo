@@ -22,7 +22,10 @@ def migrate(cr, version):
     sets, where = [], []
     for src, dst in MAP.items():
         if src in cols and dst in cols:
-            sets.append("%s = COALESCE(%s, %s)" % (dst, dst, src))
+            # Studio value wins — COALESCE(src, dst), NOT (dst, src): fields with a
+            # default (laundry_status='Not Started') are never NULL, so a dst-first
+            # COALESCE would keep the default and skip the real legacy value.
+            sets.append("%s = COALESCE(%s, %s)" % (dst, src, dst))
             where.append("%s IS NOT NULL" % src)
     if not sets:
         _logger.info("laundry_pos 1.2.0: no Studio columns present — nothing to migrate")
