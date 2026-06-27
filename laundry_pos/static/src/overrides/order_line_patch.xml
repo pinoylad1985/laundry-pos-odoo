@@ -10,6 +10,9 @@
              attributes (checkbox + bold label + value), then "Folded pcs" (WDF) /
              "Pressed pcs" (Press) at the bottom. -->
         <xpath expr="//ul[hasclass('info-list')]" position="after">
+            <div t-if="vals.laundryActualWeight" class="laundry-attrs ms-2">
+                <div class="attribute-line"><b>Actual Weight:</b> <t t-esc="vals.laundryActualWeight"/></div>
+            </div>
             <div t-if="vals.isReceipt and (vals.laundryWdf or vals.laundryPress)" class="laundry-attrs ms-2">
                 <div class="attribute-line"><b>Sorted pcs:</b> _____</div>
             </div>
@@ -17,7 +20,7 @@
                  class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
                      class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' }">
-                    <t t-if="vals.isReceipt and a.name !== 'Actual Weight'">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
+                    <t t-if="vals.isReceipt">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
                 </div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">

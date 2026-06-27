@@ -25,14 +25,11 @@ patch(Orderline.prototype, {
         if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
-        // Wash-Dry-Fold: show the ACTUAL entered weight as the FIRST attribute line,
-        // formatted "Actual Weight: <value> KG" (the qty/billing uses the rounded value).
+        // Wash-Dry-Fold: the ACTUAL entered weight gets its own line ABOVE everything
+        // (above "Sorted pcs" on the receipt). The qty/billing uses the rounded value.
         if (code === "wdf" && line.laundry_actual_weight) {
             const disp = String(Math.round(line.laundry_actual_weight * 100) / 100);
-            vals.laundryAttributes = [
-                { name: "Actual Weight", value: `${disp} KG` },
-                ...vals.laundryAttributes,
-            ];
+            vals.laundryActualWeight = `${disp} KG`;
         }
         // Wash-Dry-Fold: show the per-KG qty with up to ONE decimal (2.5, not 2.50).
         if (code === "wdf") {
