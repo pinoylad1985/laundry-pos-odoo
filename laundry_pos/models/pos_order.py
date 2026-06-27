@@ -76,6 +76,28 @@ class PosOrder(models.Model):
         store=True,
     )
 
+    # --- Back-office workflow fields (migrating off the Studio x_studio_* equivalents;
+    # selection values mirror the Studio fields so legacy data copies across 1:1). ---
+    laundry_staff = fields.Selection(
+        selection=[
+            ('Maan', 'Maan'), ('Jane', 'Jane'), ('Rose', 'Rose'), ('Yumi', 'Yumi'),
+            ('Beth', 'Beth'), ('Luisa', 'Luisa'), ('Nita', 'Nita'), ('Emy', 'Emy'),
+            ('Lester', 'Lester'), ('Ruby', 'Ruby'), ('Tesheil', 'Tesheil'), ('Mark', 'Mark'),
+            ('Jepoy', 'Jepoy'), ('Mona', 'Mona'), ('Tricia', 'Tricia'),
+        ],
+        string='Staff',
+    )
+    laundry_folding_time = fields.Datetime(string='Folding Time')
+    laundry_status = fields.Selection(
+        selection=[
+            ('Not Started', 'Not Started'),
+            ('In Process', 'In Process'),
+            ('Folded', 'Folded'),
+        ],
+        string='Status',
+        default='Not Started',
+    )
+
     @api.depends('laundry_delivery_datetime', 'laundry_claim_datetime')
     def _compute_laundry_due_datetime(self):
         # Legacy fallback to the ex-Studio field for old records. Guarded by a

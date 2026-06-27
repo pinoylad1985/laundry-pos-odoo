@@ -2,17 +2,25 @@
 <odoo>
     <!--
         Add laundry columns to the standard POS Orders list:
-        - laundry_service_type: the 5 modal-driven service types (read-only).
-        - laundry_secondary_type: coarse Order / Payment / Refund classification (computed).
+        - laundry_service_type / laundry_secondary_type: read-only classification.
+        - laundry_status / laundry_staff / laundry_folding_time: back-office workflow,
+          editable inline (migrated off the Studio x_studio_* fields). The list is made
+          inline-editable (editable="bottom") so these can be set directly in the row.
     -->
     <record id="view_pos_order_tree_laundry" model="ir.ui.view">
         <field name="name">pos.order.list.laundry</field>
         <field name="model">pos.order</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
         <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="editable">bottom</attribute>
+            </xpath>
             <xpath expr="//list" position="inside">
                 <field name="laundry_service_type" optional="show" readonly="1"/>
                 <field name="laundry_secondary_type" optional="show" readonly="1"/>
+                <field name="laundry_status" optional="show" readonly="1"/>
+                <field name="laundry_staff" optional="show"/>
+                <field name="laundry_folding_time" optional="show"/>
             </xpath>
         </field>
     </record>

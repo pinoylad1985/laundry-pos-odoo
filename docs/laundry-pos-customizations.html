@@ -115,7 +115,12 @@
     <tr><td><code>laundry_due_datetime</code></td><td>Datetime, computed+stored</td><td>"Cashier Due" = delivery datetime, else claim datetime</td></tr>
     <tr><td><code>laundry_customer_phone</code></td><td>Char, computed+stored</td><td>from <code>partner_id.phone</code></td></tr>
     <tr><td><code>laundry_customer_address</code></td><td>Char, computed+stored</td><td><code>street</code> + <code>street2</code></td></tr>
+    <tr><td><code>laundry_secondary_type</code></td><td>Selection, computed+stored</td><td>Order / Payment / Adjustment / Refund — coarse reporting class (a POS Orders list column). Refund (<code>is_refund</code> or refunded via <code>lines.refund_orderline_ids</code>) &gt; Payment (settle lines or legacy <code>x_studio_category</code>='Payment') &gt; Adjustment (legacy 'Adjustment') &gt; Order (has a service type) &gt; blank. Depends on <code>lines.refund_orderline_ids</code>, NOT the non-stored <code>refund_orders_count</code>.</td></tr>
   </table>
+  <p><strong><code>pos.order.line.laundry_actual_weight</code></strong> (Float, loaded) — the real weighed value entered in the
+    Wash-Dry-Fold configurator; shown as-is (like a variant attribute) in the cart and receipt, while the line qty is the
+    rounded/min-billed value (§3). The old list-view <code>laundry_manual_category</code> dropdown was <strong>removed</strong>
+    (superseded by <code>laundry_secondary_type</code>).</p>
   <div class="why"><strong>Why computed-stored, not <code>related</code>:</strong> a stored <code>related</code> field is
     writable and would push values back to <code>res.partner</code> — POS could wipe the customer's phone on order sync.
     A computed field has no inverse, so it stays one-way (partner → order) and any stale value POS sends is corrected on
@@ -143,6 +148,15 @@
      <strong>leading word boundary</strong> so <code>"press"</code> never matches <code>"(express)"</code>. Lookups go
      through live <code>pos.models</code> (active + <code>available_in_pos</code>), so price/attributes/variants always
      reflect the real POS product.</p>
+  <p><strong>Wash-Dry-Fold is weight-based.</strong> The cashier enters the <strong>Actual Weight (KG)</strong> in the product
+     configurator (a <strong>required</strong> custom input); it's stored on <code>pos.order.line.laundry_actual_weight</code>
+     and shown as-is, like a variant attribute, in the cart and receipt (the line qty displays to 1 decimal). The billed
+     <strong>qty</strong> = <code>wdfBilledQty(actual, count)</code> = <code>max(actual rounded UP to 0.5kg, min)</code>, where
+     min is <strong>6kg</strong> for a single WDF line and <strong>4kg</strong> when there are two or more. It's applied at
+     configure (Add) — <code>OrderSummary._laundryApplyWdfBilling</code> sweeps every configured WDF line — and re-checked at
+     payment (§9). WDF qty is <strong>locked from manual numpad edits</strong>: only the configurator and the min-weight bump
+     may set it (a guard flag, <code>allowWdfQty</code>, in <code>pos_order_line_patch.js</code>; <code>setQuantity(0)</code> /
+     removing the line still works). DWC/Shoe stay locked to 1; Press may exceed 1.</p>
 
   <h2 id="modal">4. New Order modal &amp; turnaround logic <span class="file">new_order_modal.js, product_screen_patch.js, pos_store.js</span></h2>
   <p>The setup modal is opened by the navbar <strong>New Order</strong> button (or the banner's <strong>Complete</strong>
@@ -246,11 +260,15 @@
     whole popup from crashing.</div>
 
   <h2 id="payment">9. Payment gates <span class="file">pos_store.js</span></h2>
-  <p>Both Pay buttons funnel through <code>PosStore.pay()</code>, which blocks with an <code>AlertDialog</code> when:</p>
+  <p>Both Pay buttons funnel through <code>PosStore.pay()</code>, which blocks when:</p>
   <ul>
-    <li>any laundry line still has <strong>unselected options</strong> (lists the offending product names); or</li>
-    <li>a <strong>Wash-Dry-Fold minimum weight</strong> is unmet — at least <strong>6KG</strong> for a single WDF line, or <strong>4KG on each line</strong> when there is more than one WDF line.</li>
+    <li>any laundry line still has <strong>unselected options</strong> (lists the offending product names — <code>AlertDialog</code>); or</li>
+    <li>a <strong>Wash-Dry-Fold line isn't at its billed qty</strong> — a <code>ConfirmationDialog</code> with a <strong>"Click here"</strong> button re-bills every WDF line to <code>max(actual rounded up to 0.5kg, min)</code> (min = 6KG single / 4KG when 2+). It bumps short lines UP and brings a previously force-bumped line back DOWN when the count/min changes, and does <strong>not</strong> auto-proceed — the cashier reviews and presses Pay again.</li>
   </ul>
+  <p><strong>Refunds:</strong> clicking <strong>Refund</strong> in the Orders screen refunds the <strong>whole order</strong> at
+     full quantity (no partial — <code>_setToRefundDetail</code> / <code>onDoRefund</code> overrides; note reads "Only full refund
+     is allowed. Click Refund to proceed."). A refund order disables the <strong>New Order</strong> and <strong>Settle Order</strong>
+     hub buttons (<code>navbar</code> <code>laundryIsRefund</code>).</p>
 
   <h2 id="receipt">10. Receipt customization <span class="file">order_receipt_patch.js, receipt_header_patch.js, order_line_patch.js, laundry_receipt.scss</span></h2>
   <h3>Multi-copy thermal receipt</h3>
