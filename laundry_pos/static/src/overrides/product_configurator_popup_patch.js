@@ -23,6 +23,16 @@ export function setEditWeight(kg) {
     editWeightKg = kg || null;
 }
 
+// Weight from the last WDF configurator confirm. PosStore.addLineToCurrentOrder reads
+// this to apply the weight even when the line was configured by the CORE add-flow
+// (adding a WDF from the product grid), which ignores our custom payload fields.
+let lastWdfWeight = null;
+export function consumeWdfWeight() {
+    const v = lastWdfWeight;
+    lastWdfWeight = null;
+    return v;
+}
+
 patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
@@ -65,6 +75,10 @@ patch(ProductConfiguratorPopup.prototype, {
             this.laundryKgState.invalid = true;
             this.laundryKgRef?.el?.focus?.();
             return;
+        }
+        if (this.isLaundryWdf) {
+            // Stash for the product-grid add-flow (see PosStore.addLineToCurrentOrder).
+            lastWdfWeight = this.laundryEnteredKg;
         }
         return super.confirm(...arguments);
     },

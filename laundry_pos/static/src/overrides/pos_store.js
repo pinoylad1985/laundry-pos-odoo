@@ -7,6 +7,7 @@ import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 import { lineNeedsConfig, laundryCodeForProduct, wdfBilledQty } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
 import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
+import { consumeWdfWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
 
 patch(PosStore.prototype, {
     /**
@@ -29,7 +30,26 @@ patch(PosStore.prototype, {
      * inside the guard so WDF qty in `vals` is honored.
      */
     async addLineToCurrentOrder() {
-        return allowWdfQty(() => super.addLineToCurrentOrder(...arguments));
+        const line = await allowWdfQty(() => super.addLineToCurrentOrder(...arguments));
+        // The CORE configure-flow (auto-opened when a WDF is added from the product
+        // grid) ignores our custom weight payload. Apply the stashed weight to the
+        // just-created line, then re-bill every WDF line for the new count.
+        const weight = consumeWdfWeight();
+        const target = line || this.getOrder()?.getSelectedOrderline?.();
+        if (weight && target && laundryCodeForProduct(target.product_id?.product_tmpl_id) === "wdf") {
+            target.laundry_actual_weight = weight;
+            const wdfLines = (this.getOrder()?.lines || []).filter(
+                (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
+            );
+            allowWdfQty(() => {
+                for (const l of wdfLines) {
+                    if (l.laundry_actual_weight) {
+                        l.setQuantity(wdfBilledQty(l.laundry_actual_weight, wdfLines.length));
+                    }
+                }
+            });
+        }
+        return line;
     },
 
     /**
