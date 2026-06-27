@@ -12,14 +12,12 @@ patch(Orderline.prototype, {
         const vals = super.lineScreenValues;
         const line = this.props.line;
 
-        vals.laundryAttributes = (line.attribute_value_ids || [])
-            .map((av) => ({
-                name: this._laundryAttrName(av.attribute_id?.name || ""),
-                value: av.name || "",
-            }))
-            // Turnaround is already shown once in the order details header, so
-            // drop the per-product "Turnaround" line from the printed receipt.
-            .filter((a) => !(vals.isReceipt && a.name === "Turnaround"));
+        // Show every attribute in BOTH the cart and the receipt (Turnaround included;
+        // it's muted in the cart but printed normally).
+        vals.laundryAttributes = (line.attribute_value_ids || []).map((av) => ({
+            name: this._laundryAttrName(av.attribute_id?.name || ""),
+            value: av.name || "",
+        }));
 
         const code = laundryCodeForProduct(line.product_id?.product_tmpl_id);
         if (code && typeof vals.name === "string") {

@@ -6,24 +6,25 @@
             <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
         </xpath>
 
-        <!-- Below the rate: WDF "Sorting count" first, then the attributes (empty
-             checkbox + bold label + value), then WDF "Folding count" last. -->
+        <!-- Receipt write-in counts (no checkbox): "Sorted pcs" at the top, then the
+             attributes (checkbox + bold label + value), then "Folded pcs" (WDF) /
+             "Pressed pcs" (Press) at the bottom. -->
         <xpath expr="//ul[hasclass('info-list')]" position="after">
             <div t-if="vals.isReceipt and (vals.laundryWdf or vals.laundryPress)" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Sorting count:</b> _____</div>
+                <div class="attribute-line"><b>Sorted pcs:</b> _____</div>
             </div>
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
                 <div t-foreach="vals.laundryAttributes" t-as="a" t-key="a_index"
-                     class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' }">
+                     class="attribute-line" t-att-class="{ 'text-muted': a.name === 'Turnaround' and !vals.isReceipt }">
                     <t t-if="vals.isReceipt">&#9744; </t><b><t t-esc="a.name"/>:</b> <t t-esc="a.value"/>
                 </div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Folding count:</b> _____</div>
+                <div class="attribute-line"><b>Folded pcs:</b> _____</div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryPress" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Press count:</b> _____</div>
+                <div class="attribute-line"><b>Pressed pcs:</b> _____</div>
             </div>
         </xpath>
     </t>
