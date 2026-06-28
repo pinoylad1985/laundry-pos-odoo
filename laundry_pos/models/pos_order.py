@@ -196,12 +196,18 @@ class PosOrder(models.Model):
         return [{"id": r.id, "name": r.name} for r in riders]
 
     @api.model
-    def verify_laundry_rider(self, rider_id, pin):
-        """Return the rider's name if the PIN matches that tagged rider, else False."""
-        emp = self.env["hr.employee"].sudo().browse(int(rider_id))
-        if emp.exists() and emp.is_laundry_rider and emp.pin and emp.pin == (pin or "").strip():
-            return emp.name
-        return False
+    def check_laundry_rider(self, pin, rider_id=False):
+        """Authenticate a rider like the register unlock: with rider_id, verify THAT rider's
+        PIN; otherwise find the tagged rider whose PIN matches (type-PIN-to-identify).
+        Returns {'id', 'name'} on success, else False."""
+        pin = (pin or "").strip()
+        Emp = self.env["hr.employee"].sudo()
+        if rider_id:
+            emp = Emp.browse(int(rider_id))
+            ok = emp.exists() and emp.is_laundry_rider and emp.pin and emp.pin == pin
+            return {"id": emp.id, "name": emp.name} if ok else False
+        emp = Emp.search([("is_laundry_rider", "=", True), ("pin", "=", pin)], limit=1)
+        return {"id": emp.id, "name": emp.name} if emp else False
 
     # NOTE: No _load_pos_data_fields override needed here.
     # pos.order's default returns [] which means Odoo reads ALL fields via read([]).
