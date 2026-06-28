@@ -8,6 +8,7 @@ import { lineNeedsConfig, laundryCodeForProduct, wdfBilledQty } from "@laundry_p
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
 import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 import { consumeWdfWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { RiderSignoffPopup } from "@laundry_pos/rider_signoff/rider_signoff_popup";
 
 patch(PosStore.prototype, {
     /**
@@ -171,6 +172,22 @@ patch(PosStore.prototype, {
                 return;
             }
         }
+
+        // Pickup & Delivery / Locker orders require a rider sign-off (PIN) before payment.
+        const svc = order?.laundry_service_type;
+        if (["pickup_delivery", "locker"].includes(svc) && !order?._riderSignedOff) {
+            const dialog = this.dialog || this.env?.services?.dialog;
+            const payArgs = arguments;
+            dialog?.add(RiderSignoffPopup, {
+                onSignedOff: (riderName) => {
+                    order._riderSignedOff = true;
+                    order.laundry_rider = riderName;
+                    this.pay(...payArgs); // re-enter; now signed off -> proceeds to payment
+                },
+            });
+            return;
+        }
+
         return super.pay(...arguments);
     },
 });

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="laundry_pos.RiderSignoffPopup">
+        <Dialog title="'Rider sign-off'" size="'md'">
+            <div class="laundry-rider-signoff">
+                <p class="mb-2">Pickup &amp; Delivery / Locker orders need a rider sign-off to proceed to payment.</p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button t-foreach="state.riders" t-as="r" t-key="r.id" type="button"
+                            class="btn btn-lg"
+                            t-att-class="state.riderId === r.id ? 'btn-primary' : 'btn-outline-primary'"
+                            t-on-click="() => this.selectRider(r.id)">
+                        <t t-esc="r.name"/>
+                    </button>
+                    <span t-if="!state.riders.length" class="text-muted">No riders configured.</span>
+                </div>
+                <input type="password" inputmode="numeric" autocomplete="off"
+                       class="form-control form-control-lg" placeholder="Rider PIN"
+                       t-att-value="state.pin"
+                       t-on-input="(ev) => this.state.pin = ev.target.value"/>
+                <div t-if="state.error" class="text-danger mt-2"><t t-esc="state.error"/></div>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="confirm">Sign off &amp; continue</button>
+                <button class="btn btn-secondary" t-on-click="() => this.props.close()">Cancel</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

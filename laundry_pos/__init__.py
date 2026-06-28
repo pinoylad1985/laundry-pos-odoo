@@ -4,6 +4,8 @@ from . import models
 LAUNDRY_STAFF_ALIASES = {"Jepoy": "Jeff"}
 # Resigned employees the module keeps archived (off the Staff picker; history preserved).
 LAUNDRY_RESIGNED_EMPLOYEES = ("Lester", "Joey", "Kate", "Lucy", "Lita", "Mona")
+# Employees seeded as delivery riders (is_laundry_rider). Still configurable afterward.
+LAUNDRY_RIDERS = ("Carl", "Fernan", "Felix", "Jim", "Jeff")
 
 
 def _laundry_post_init(env):
@@ -54,3 +56,9 @@ def _laundry_post_init(env):
         "UPDATE hr_employee SET active = false WHERE name IN %s AND active = true",
         (LAUNDRY_RESIGNED_EMPLOYEES,),
     )
+    # Seed the rider tag on the known riders (configurable via is_laundry_rider afterward).
+    if "is_laundry_rider" in env["hr.employee"]._fields:
+        cr.execute(
+            "UPDATE hr_employee SET is_laundry_rider = true WHERE name IN %s AND is_laundry_rider IS NOT true",
+            (LAUNDRY_RIDERS,),
+        )

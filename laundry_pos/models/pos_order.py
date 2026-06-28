@@ -103,6 +103,8 @@ class PosOrder(models.Model):
         string='Status',
         default='Not Started',
     )
+    # Rider who signed off on a Pickup & Delivery / Locker order at payment (POS PIN gate).
+    laundry_rider = fields.Char(string='Rider')
 
     @api.depends('laundry_delivery_datetime', 'laundry_claim_datetime')
     def _compute_laundry_due_datetime(self):
@@ -170,6 +172,36 @@ class PosOrder(models.Model):
             order.laundry_customer_address = (
                 " ".join(filter(None, [p.street, p.street2])).strip() or False
             )
+
+    def action_laundry_set_staff(self):
+        """Open the PIN-gated wizard to set Staff / Folding Time on this order."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Set Staff / Folding Time",
+            "res_model": "laundry.staff.pin.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_order_id": self.id,
+                "default_staff_id": self.laundry_staff_id.id,
+                "default_folding_time": self.laundry_folding_time,
+            },
+        }
+
+    @api.model
+    def get_laundry_riders(self):
+        """Active employees tagged as riders — for the POS sign-off pills."""
+        riders = self.env["hr.employee"].sudo().search([("is_laundry_rider", "=", True)])
+        return [{"id": r.id, "name": r.name} for r in riders]
+
+    @api.model
+    def verify_laundry_rider(self, rider_id, pin):
+        """Return the rider's name if the PIN matches that tagged rider, else False."""
+        emp = self.env["hr.employee"].sudo().browse(int(rider_id))
+        if emp.exists() and emp.is_laundry_rider and emp.pin and emp.pin == (pin or "").strip():
+            return emp.name
+        return False
 
     # NOTE: No _load_pos_data_fields override needed here.
     # pos.order's default returns [] which means Odoo reads ALL fields via read([]).
