@@ -97,4 +97,9 @@ patch(ReceiptHeader.prototype, {
         }
         return "";
     },
+
+    // Rider who signed off on a Pickup & Delivery / Locker order (set at payment).
+    get laundryRider() {
+        return this.props.order?.laundry_rider || "";
+    },
 });

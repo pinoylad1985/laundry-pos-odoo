@@ -4,8 +4,8 @@ import { Component, useState, onWillStart } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { useService } from "@web/core/utils/hooks";
 
-// Rider sign-off, mirroring the register unlock: type the PIN to identify the rider, OR tap
-// the people icon to pick a name then enter that rider's PIN. Numpad + keyboard both work.
+// Rider sign-off, styled like the register unlock: a PIN bar (type the PIN to identify the
+// rider) plus a people icon to pick the name instead. Verified server-side.
 export class RiderSignoffPopup extends Component {
     static template = "laundry_pos.RiderSignoffPopup";
     static components = { Dialog };
@@ -37,16 +37,6 @@ export class RiderSignoffPopup extends Component {
     clearRider() {
         this.state.riderId = null;
         this.state.riderName = "";
-    }
-    pressKey(k) {
-        this.state.error = "";
-        if (k === "C") {
-            this.state.pin = "";
-        } else if (k === "del") {
-            this.state.pin = this.state.pin.slice(0, -1);
-        } else {
-            this.state.pin += k;
-        }
     }
     onKeydown(ev) {
         if (ev.key === "Enter") {

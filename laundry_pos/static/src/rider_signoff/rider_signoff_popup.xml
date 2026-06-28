@@ -1,41 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="laundry_pos.RiderSignoffPopup">
-        <Dialog title="'Rider sign-off'" size="'md'">
+        <Dialog title="'Pickup Rider Signoff'" size="'md'">
             <div class="laundry-rider-signoff">
-                <p class="mb-2 text-muted">Pickup &amp; Delivery / Locker — a rider must sign off to proceed to payment.</p>
                 <div t-if="state.riderName" class="mb-2">
                     Rider: <b><t t-esc="state.riderName"/></b>
                     <button class="btn btn-sm btn-link p-0 ms-2" t-on-click="clearRider">change</button>
                 </div>
-                <div class="d-flex gap-2 mb-3">
+                <!-- PIN bar, like the register unlock: input + people + barcode -->
+                <div class="d-flex align-items-center gap-2 bg-white border rounded-3 p-2">
                     <input type="password" inputmode="numeric" autocomplete="off"
-                           class="form-control form-control-lg text-center"
+                           class="form-control form-control-lg border-0 shadow-none"
                            placeholder="Enter your PIN"
                            t-att-value="state.pin"
                            t-on-input="(ev) => this.state.pin = ev.target.value"
                            t-on-keydown="onKeydown"/>
                     <button class="btn btn-light btn-lg" title="Select rider" t-on-click="toggleRiders">
-                        <i class="fa fa-users"/>
+                        <i class="fa fa-users" role="img" aria-label="Select rider"/>
+                    </button>
+                    <button class="btn btn-light btn-lg" title="Scan badge" disabled="disabled">
+                        <i class="fa fa-barcode" role="img" aria-label="Scan"/>
                     </button>
                 </div>
-                <div t-if="state.showRiders" class="d-flex flex-wrap gap-2 mb-2">
+                <div t-if="state.showRiders" class="d-flex flex-wrap gap-2 mt-2">
                     <button t-foreach="state.riders" t-as="r" t-key="r.id" type="button"
                             class="btn btn-outline-primary btn-lg" t-on-click="() => this.selectRider(r)">
                         <t t-esc="r.name"/>
                     </button>
                     <span t-if="!state.riders.length" class="text-muted">No riders configured.</span>
-                </div>
-                <div t-else="" class="laundry-pin-pad mx-auto" style="max-width: 16rem;">
-                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
-                        <button t-foreach="['1','2','3','4','5','6','7','8','9']" t-as="k" t-key="k"
-                                type="button" class="btn btn-light btn-lg" t-on-click="() => this.pressKey(k)">
-                            <t t-esc="k"/>
-                        </button>
-                        <button type="button" class="btn btn-light btn-lg" t-on-click="() => this.pressKey('C')">C</button>
-                        <button type="button" class="btn btn-light btn-lg" t-on-click="() => this.pressKey('0')">0</button>
-                        <button type="button" class="btn btn-light btn-lg" t-on-click="() => this.pressKey('del')">⌫</button>
-                    </div>
                 </div>
                 <div t-if="state.error" class="text-danger mt-2"><t t-esc="state.error"/></div>
             </div>
