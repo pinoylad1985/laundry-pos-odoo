@@ -22,3 +22,14 @@ def _laundry_post_init(env):
             where.append("%s IS NOT NULL" % src)
     if sets:
         cr.execute("UPDATE pos_order SET %s WHERE %s" % (", ".join(sets), " OR ".join(where)))
+    # Link Staff to the matching employee (by name) for the laundry_staff_id field.
+    if "x_studio_staff" in cols and "laundry_staff_id" in cols:
+        cr.execute(
+            """
+            UPDATE pos_order o SET laundry_staff_id = (
+                SELECT e.id FROM hr_employee e WHERE e.name = o.x_studio_staff ORDER BY e.id LIMIT 1
+            )
+            WHERE o.x_studio_staff IS NOT NULL AND o.laundry_staff_id IS NULL
+              AND EXISTS (SELECT 1 FROM hr_employee e2 WHERE e2.name = o.x_studio_staff)
+            """
+        )

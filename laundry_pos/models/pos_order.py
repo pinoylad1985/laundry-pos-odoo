@@ -78,6 +78,9 @@ class PosOrder(models.Model):
 
     # --- Back-office workflow fields (migrating off the Studio x_studio_* equivalents;
     # selection values mirror the Studio fields so legacy data copies across 1:1). ---
+    # Legacy free-text staff name (migrated from x_studio_staff); superseded by the
+    # employee link below. Kept for history — it holds names with no matching employee
+    # (e.g. Kate). Not shown in the views.
     laundry_staff = fields.Selection(
         selection=[
             ('Maan', 'Maan'), ('Jane', 'Jane'), ('Rose', 'Rose'), ('Yumi', 'Yumi'),
@@ -85,8 +88,11 @@ class PosOrder(models.Model):
             ('Ruby', 'Ruby'), ('Tesheil', 'Tesheil'), ('Mark', 'Mark'),
             ('Jepoy', 'Jepoy'), ('Mona', 'Mona'), ('Tricia', 'Tricia'),
         ],
-        string='Staff',
+        string='Staff (legacy name)',
     )
+    # The assigned cashier. Picker shows ACTIVE employees (archive resignees to hide
+    # them while keeping history). Editing it on the form requires the cashier's POS PIN.
+    laundry_staff_id = fields.Many2one('hr.employee', string='Staff')
     laundry_folding_time = fields.Datetime(string='Folding Time')
     laundry_status = fields.Selection(
         selection=[
