@@ -1,3 +1,17 @@
+// POS Orders list — auto-size columns to their content. Odoo's list uses a fixed table
+// layout that assigns widths and truncates; this lets the browser size each column to its
+// content instead (so nothing is cut off). The list can scroll horizontally as a result.
+.o_list_renderer .o_list_table.o_laundry_autosize {
+    table-layout: auto !important;
+
+    th,
+    td {
+        white-space: nowrap;
+        width: auto !important;
+        max-width: none !important;
+    }
+}
+
 .laundry-folding-picker {
     .laundry-rollers {
         position: relative;
