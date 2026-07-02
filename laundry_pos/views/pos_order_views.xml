@@ -16,8 +16,8 @@
                 <field name="laundry_secondary_type" optional="show"/>
                 <field name="laundry_due_datetime" optional="show"/>
                 <field name="laundry_status" optional="show"/>
-                <field name="laundry_staff_id" optional="show"/>
-                <field name="laundry_folding_time" optional="show"/>
+                <field name="laundry_staff_id" optional="show" widget="laundry_staff_pin"/>
+                <field name="laundry_folding_time" optional="show" widget="laundry_folding_pin"/>
             </xpath>
         </field>
     </record>

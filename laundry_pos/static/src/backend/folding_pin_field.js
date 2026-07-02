@@ -27,9 +27,6 @@ export class FoldingPinField extends Component {
     }
 
     open() {
-        if (this.props.readonly) {
-            return;
-        }
         this.dialog.add(LaundryFoldingPicker, {
             current: this.value || false,
             onApply: (dt) => this._askPin(dt),

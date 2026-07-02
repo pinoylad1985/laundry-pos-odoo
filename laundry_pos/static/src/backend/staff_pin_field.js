@@ -21,9 +21,6 @@ export class StaffPinField extends Component {
     }
 
     open() {
-        if (this.props.readonly) {
-            return;
-        }
         this.dialog.add(LaundryPinDialog, {
             title: "Wash-Dry-Fold Staff",
             listMethod: "get_laundry_staff",
