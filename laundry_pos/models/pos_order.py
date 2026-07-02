@@ -210,6 +210,25 @@ class PosOrder(models.Model):
         emp = Emp.search([("is_laundry_rider", "=", True), ("pin", "=", pin)], limit=1)
         return {"id": emp.id, "name": emp.name} if emp else False
 
+    @api.model
+    def get_laundry_staff(self):
+        """Active employees — for the Staff PIN dialog's name list."""
+        emps = self.env["hr.employee"].sudo().search([])
+        return [{"id": e.id, "name": e.name} for e in emps]
+
+    @api.model
+    def check_laundry_staff(self, pin, staff_id=False):
+        """Authenticate a staff member by PIN (or verify the selected one). Returns
+        {'id', 'name'} on success, else False."""
+        pin = (pin or "").strip()
+        Emp = self.env["hr.employee"].sudo()
+        if staff_id:
+            emp = Emp.browse(int(staff_id))
+            ok = emp.exists() and emp.pin and emp.pin == pin
+            return {"id": emp.id, "name": emp.name} if ok else False
+        emp = Emp.search([("pin", "=", pin)], limit=1)
+        return {"id": emp.id, "name": emp.name} if emp else False
+
     @api.constrains("laundry_folding_time")
     def _check_laundry_folding_not_future(self):
         now = fields.Datetime.now()

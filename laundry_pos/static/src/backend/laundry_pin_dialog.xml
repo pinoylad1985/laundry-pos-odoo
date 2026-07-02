@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="laundry_pos.LaundryPinDialog">
+        <Dialog title="props.title" size="'md'">
+            <div class="laundry-pin-dialog">
+                <div t-if="state.selName" class="mb-2">
+                    Selected: <b><t t-esc="state.selName"/></b>
+                    <button class="btn btn-sm btn-link p-0 ms-2" t-on-click="clearSel">change</button>
+                </div>
+                <!-- PIN bar, like the register unlock: input + people -->
+                <div class="d-flex align-items-center gap-2 bg-white border rounded-3 p-2">
+                    <input type="password" inputmode="numeric" autocomplete="off"
+                           class="form-control form-control-lg border-0 shadow-none"
+                           placeholder="Enter your PIN"
+                           t-att-value="state.pin"
+                           t-on-input="(ev) => this.state.pin = ev.target.value"
+                           t-on-keydown="onKeydown"/>
+                    <button class="btn btn-light btn-lg" title="Select name" t-on-click="toggleList">
+                        <i class="fa fa-users" role="img" aria-label="Select name"/>
+                    </button>
+                </div>
+                <div t-if="state.showList" class="d-flex flex-wrap gap-2 mt-2">
+                    <button t-foreach="state.list" t-as="x" t-key="x.id" type="button"
+                            class="btn btn-outline-primary" t-on-click="() => this.select(x)">
+                        <t t-esc="x.name"/>
+                    </button>
+                    <span t-if="!state.list.length" class="text-muted">None available.</span>
+                </div>
+                <div t-if="state.error" class="text-danger mt-2"><t t-esc="state.error"/></div>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="confirm">Confirm</button>
+                <button class="btn btn-secondary" t-on-click="() => this.props.close()">Cancel</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

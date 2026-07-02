@@ -1,6 +1,6 @@
 {
     'name': 'Laundry POS',
-    'version': '1.2.7',
+    'version': '1.2.8',
     'author': 'laundryx',
     'summary': 'Custom laundry service workflow for Point of Sale',
     'category': 'Point of Sale',
@@ -17,6 +17,12 @@
             'laundry_pos/static/src/**/*.scss',
             'laundry_pos/static/src/**/*.js',
             'laundry_pos/static/src/**/*.xml',
+            # Backend-only field widgets must NOT load in the POS bundle.
+            ('remove', 'laundry_pos/static/src/backend/**/*'),
+        ],
+        'web.assets_backend': [
+            'laundry_pos/static/src/backend/**/*.js',
+            'laundry_pos/static/src/backend/**/*.xml',
         ],
     },
     'installable': True,
