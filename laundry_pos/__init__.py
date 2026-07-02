@@ -6,6 +6,15 @@ LAUNDRY_STAFF_ALIASES = {"Jepoy": "Jeff"}
 LAUNDRY_RESIGNED_EMPLOYEES = ("Lester", "Joey", "Kate", "Lucy", "Lita", "Mona")
 # Employees seeded as delivery riders (is_laundry_rider). Still configurable afterward.
 LAUNDRY_RIDERS = ("Carl", "Fernan", "Felix", "Jim", "Jeff")
+# Legacy x_studio_category service labels -> laundry_service_type codes (backfill).
+# Adjustment / Payment / blank are NOT service types and are intentionally left out.
+LAUNDRY_SERVICE_TYPE_BY_CATEGORY = {
+    "Drop-off": "dropoff",
+    "Drop-off & Delivery": "dropoff_delivery",
+    "Pickup & Delivery": "pickup_delivery",
+    "Locker": "locker",
+    "Self-service": "self_service",
+}
 
 
 def _laundry_post_init(env):
@@ -29,6 +38,14 @@ def _laundry_post_init(env):
             where.append("%s IS NOT NULL" % src)
     if sets:
         cr.execute("UPDATE pos_order SET %s WHERE %s" % (", ".join(sets), " OR ".join(where)))
+    # Backfill service type from the legacy x_studio_category service labels.
+    if "x_studio_category" in cols and "laundry_service_type" in cols:
+        for label, code in LAUNDRY_SERVICE_TYPE_BY_CATEGORY.items():
+            cr.execute(
+                "UPDATE pos_order SET laundry_service_type = %s "
+                "WHERE x_studio_category = %s AND laundry_service_type IS NULL",
+                (code, label),
+            )
     # Link Staff to the matching employee (by name) for the laundry_staff_id field.
     if "x_studio_staff" in cols and "laundry_staff_id" in cols:
         cr.execute(

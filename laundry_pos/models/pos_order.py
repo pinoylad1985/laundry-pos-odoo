@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class PosOrder(models.Model):
@@ -208,6 +209,13 @@ class PosOrder(models.Model):
             return {"id": emp.id, "name": emp.name} if ok else False
         emp = Emp.search([("is_laundry_rider", "=", True), ("pin", "=", pin)], limit=1)
         return {"id": emp.id, "name": emp.name} if emp else False
+
+    @api.constrains("laundry_folding_time")
+    def _check_laundry_folding_not_future(self):
+        now = fields.Datetime.now()
+        for order in self:
+            if order.laundry_folding_time and order.laundry_folding_time > now:
+                raise ValidationError("Folding Time cannot be in the future.")
 
     # NOTE: No _load_pos_data_fields override needed here.
     # pos.order's default returns [] which means Odoo reads ALL fields via read([]).
