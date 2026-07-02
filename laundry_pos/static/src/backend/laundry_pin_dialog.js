@@ -16,20 +16,32 @@ export class LaundryPinDialog extends Component {
         checkMethod: String, // pos.order @api.model (pin, id) -> {id, name} | false
         onConfirm: Function, // ({id, name}) => void
         close: Function,
+        // Require mode: the PIN must be THIS person's (e.g. the order's Staff). When set,
+        // there is no name picker — a note tells the user the PIN must match requireName.
+        requireId: { type: [Number, Boolean], optional: true },
+        requireName: { type: String, optional: true },
     };
 
     setup() {
         this.orm = useService("orm");
         this.state = useState({
-            list: [], selId: null, selName: "", pin: "", error: "", showList: false,
+            list: [], selId: this.props.requireId || null, selName: this.props.requireName || "",
+            pin: "", error: "", showList: false,
         });
         onWillStart(async () => {
+            if (this.props.requireId) {
+                return; // fixed to the required person; no list needed
+            }
             try {
                 this.state.list = await this.orm.call("pos.order", this.props.listMethod, []);
             } catch {
                 this.state.list = [];
             }
         });
+    }
+
+    get requireMode() {
+        return !!this.props.requireId;
     }
 
     toggleList() {
@@ -55,12 +67,14 @@ export class LaundryPinDialog extends Component {
             this.state.error = "Enter the PIN.";
             return;
         }
-        const r = await this.orm.call("pos.order", this.props.checkMethod, [
-            this.state.pin,
-            this.state.selId || false,
-        ]);
+        const id = this.props.requireId || this.state.selId || false;
+        const r = await this.orm.call("pos.order", this.props.checkMethod, [this.state.pin, id]);
         if (!r) {
-            this.state.error = this.state.selId ? "Incorrect PIN." : "PIN not recognized.";
+            this.state.error = this.props.requireId
+                ? `Wrong PIN — it must be ${this.props.requireName}'s (the Staff on this order).`
+                : this.state.selId
+                ? "Incorrect PIN."
+                : "PIN not recognized.";
             this.state.pin = "";
             return;
         }

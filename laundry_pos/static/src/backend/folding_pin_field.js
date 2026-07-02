@@ -16,6 +16,7 @@ export class FoldingPinField extends Component {
 
     setup() {
         this.dialog = useService("dialog");
+        this.notification = useService("notification");
     }
 
     get value() {
@@ -35,10 +36,17 @@ export class FoldingPinField extends Component {
         });
     }
     _askPin(dt) {
+        const staff = this.props.record.data.laundry_staff_id;
+        if (!staff) {
+            this.notification.add("Set the Staff before the Folding Time.", { type: "warning" });
+            return;
+        }
         this.dialog.add(LaundryPinDialog, {
             title: "Folding Time",
             listMethod: "get_laundry_staff",
             checkMethod: "check_laundry_staff",
+            requireId: staff.id,
+            requireName: staff.display_name,
             onConfirm: () => this.props.record.update({ [this.props.name]: dt }),
         });
     }
