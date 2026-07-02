@@ -136,7 +136,7 @@
                         <div class="position-relative flex-shrink-0">
                             <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
                             <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                   style="cursor:pointer;" t-model="state.claimDate"/>
+                                   style="cursor:pointer;" t-model="state.claimDate" t-att-min="todayStr"/>
                         </div>
                     </div>
                     <t t-call="laundry_pos.HourPills">
@@ -161,7 +161,7 @@
                         <div class="position-relative flex-shrink-0">
                             <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
                             <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                   style="cursor:pointer;" t-model="state.deliveryDate"/>
+                                   style="cursor:pointer;" t-model="state.deliveryDate" t-att-min="todayStr"/>
                         </div>
                     </div>
                     <t t-call="laundry_pos.HourPills">
@@ -187,7 +187,7 @@
                             <div class="position-relative flex-shrink-0">
                                 <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
                                 <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                       style="cursor:pointer;" t-model="state.pickupDate"/>
+                                       style="cursor:pointer;" t-model="state.pickupDate" t-att-min="todayStr"/>
                             </div>
                         </div>
                         <t t-call="laundry_pos.HourPills">
@@ -210,7 +210,7 @@
                             <div class="position-relative flex-shrink-0">
                                 <button class="btn btn-sm btn-outline-secondary px-2">📅</button>
                                 <input type="date" class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                       style="cursor:pointer;" t-model="state.pdDelDate"/>
+                                       style="cursor:pointer;" t-model="state.pdDelDate" t-att-min="todayStr"/>
                             </div>
                         </div>
                         <t t-call="laundry_pos.HourPills">

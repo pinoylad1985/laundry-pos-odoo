@@ -1,0 +1,55 @@
+.laundry-folding-picker {
+    .laundry-rollers {
+        position: relative;
+
+        // centre highlight band
+        &::before {
+            content: "";
+            position: absolute;
+            top: 40px;
+            height: 40px;
+            left: 0;
+            right: 0;
+            background: rgba(113, 75, 103, 0.08);
+            border-top: 1px solid rgba(113, 75, 103, 0.25);
+            border-bottom: 1px solid rgba(113, 75, 103, 0.25);
+            pointer-events: none;
+        }
+
+        .laundry-roller {
+            height: 120px; // 3 items visible
+            width: 4rem;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            text-align: center;
+            scrollbar-width: none;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        .laundry-roller-item {
+            height: 40px;
+            line-height: 40px;
+            scroll-snap-align: center;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: #adb5bd;
+
+            &.selected {
+                color: var(--primary, #714b67);
+                font-weight: bold;
+            }
+        }
+
+        .laundry-roller-pad {
+            height: 40px;
+        }
+
+        .laundry-roller-colon {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    }
+}

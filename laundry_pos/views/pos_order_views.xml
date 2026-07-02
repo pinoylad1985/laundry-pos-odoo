@@ -37,9 +37,7 @@
                 <field name="laundry_service_type" readonly="1"/>
                 <field name="laundry_due_datetime" readonly="1"/>
                 <field name="laundry_staff_id" widget="laundry_staff_pin"/>
-                <field name="laundry_folding_time" readonly="1"/>
-                <button name="action_laundry_set_staff" type="object"
-                        string="Set Folding Time (PIN)" class="btn-secondary" icon="fa-id-badge"/>
+                <field name="laundry_folding_time" widget="laundry_folding_pin"/>
             </xpath>
         </field>
     </record>

@@ -1,6 +1,6 @@
 {
     'name': 'Laundry POS',
-    'version': '1.2.8',
+    'version': '1.2.9',
     'author': 'laundryx',
     'summary': 'Custom laundry service workflow for Point of Sale',
     'category': 'Point of Sale',
@@ -9,6 +9,7 @@
         'security/ir.model.access.csv',
         'data/laundry_service_type_data.xml',
         'data/automations.xml',
+        'data/pos_order_filters.xml',
         'views/pos_order_views.xml',
         'views/hr_employee_views.xml',
     ],
@@ -21,6 +22,7 @@
             ('remove', 'laundry_pos/static/src/backend/**/*'),
         ],
         'web.assets_backend': [
+            'laundry_pos/static/src/backend/**/*.scss',
             'laundry_pos/static/src/backend/**/*.js',
             'laundry_pos/static/src/backend/**/*.xml',
         ],

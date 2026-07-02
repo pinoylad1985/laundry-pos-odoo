@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="laundry_pos.LaundryFoldingPicker">
+        <Dialog title="'Folding Time'" size="'md'">
+            <div class="laundry-folding-picker">
+                <!-- Week navigation -->
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <button class="btn btn-light" t-on-click="prevWeek" aria-label="Previous week">‹</button>
+                    <b t-esc="monthLabel"/>
+                    <button class="btn btn-light" t-on-click="nextWeek" aria-label="Next week">›</button>
+                </div>
+                <!-- One week, Sun–Sat, no week numbers; future days disabled -->
+                <div class="d-flex gap-1 mb-3">
+                    <button t-foreach="weekDays" t-as="d" t-key="d_index" type="button"
+                            class="btn flex-grow-1 d-flex flex-column align-items-center p-1"
+                            t-att-class="{
+                                'btn-primary': d.isSel,
+                                'btn-light': !d.isSel,
+                                'border border-2 border-primary': d.isToday and !d.isSel,
+                                'opacity-25': d.isFuture,
+                            }"
+                            t-att-disabled="d.isFuture ? 'disabled' : false"
+                            t-on-click="() => this.selectDay(d)">
+                        <small class="text-uppercase" t-esc="d.dow"/>
+                        <span class="fs-5" t-esc="d.label"/>
+                    </button>
+                </div>
+                <!-- Roller time: hour : minute  AM/PM -->
+                <div class="d-flex justify-content-center align-items-center gap-2 laundry-rollers">
+                    <div class="laundry-roller" t-ref="hourRoller" t-on-scroll="(ev) => this._onRoll('hour', ev)">
+                        <div class="laundry-roller-pad"/>
+                        <div t-foreach="hours" t-as="h" t-key="h" class="laundry-roller-item"
+                             t-att-class="{ selected: state.hour === h }" t-on-click="() => this.setHour(h)">
+                            <t t-esc="h"/>
+                        </div>
+                        <div class="laundry-roller-pad"/>
+                    </div>
+                    <div class="laundry-roller-colon">:</div>
+                    <div class="laundry-roller" t-ref="minRoller" t-on-scroll="(ev) => this._onRoll('minute', ev)">
+                        <div class="laundry-roller-pad"/>
+                        <div t-foreach="minutes" t-as="m" t-key="m" class="laundry-roller-item"
+                             t-att-class="{ selected: state.minute === m }" t-on-click="() => this.setMinute(m)">
+                            <t t-esc="m.toString().padStart(2, '0')"/>
+                        </div>
+                        <div class="laundry-roller-pad"/>
+                    </div>
+                    <div class="laundry-roller" t-ref="ampmRoller" t-on-scroll="(ev) => this._onRoll('ampm', ev)">
+                        <div class="laundry-roller-pad"/>
+                        <div t-foreach="ampms" t-as="a" t-key="a" class="laundry-roller-item"
+                             t-att-class="{ selected: state.ampm === a }" t-on-click="() => this.setAmpm(a)">
+                            <t t-esc="a"/>
+                        </div>
+                        <div class="laundry-roller-pad"/>
+                    </div>
+                </div>
+                <div t-if="state.error" class="text-danger mt-2 text-center"><t t-esc="state.error"/></div>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="apply">Apply</button>
+                <button class="btn btn-secondary" t-on-click="() => this.props.close()">Cancel</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>
