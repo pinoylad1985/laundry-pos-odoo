@@ -4,7 +4,6 @@
         <div class="o_field_laundry_folding_pin" style="cursor: pointer; min-height: 1.5em;"
              t-on-click="() => this.open()">
             <span t-if="value" class="text-primary fw-bold"><t t-esc="display"/></span>
-            <span t-else="" class="text-muted">Click to set folding time…</span>
         </div>
     </t>
 </templates>
