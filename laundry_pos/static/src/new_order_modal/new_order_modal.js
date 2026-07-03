@@ -193,6 +193,7 @@ export class NewOrderModal extends Component {
     // Pressing a pill adds the matching product to the REAL POS order as a new
     // unconfigured line (variants/attributes are chosen later in the cart).
     addService(code) {
+        if (this.servicesDisabled) return;
         const product = findLaundryProduct(this.pos, code);
         if (!product) return;
         this.pos.addLineToCurrentOrder({ product_tmpl_id: product }, {}, false);
@@ -297,12 +298,21 @@ export class NewOrderModal extends Component {
      * @param {string} kind - 'claim' | 'pickup' | 'delivery'
      * @param {number} h - hour 0..23
      */
-    isHourDisabled(kind, h) {
-        // 4 AM–5 AM closed for every selector, regardless of service type
+    isHourDisabled(kind, h, dateVal) {
+        // Past hours are greyed out when the chosen date is today.
+        if (dateVal && dateVal === this.todayStr && h <= new Date().getHours()) {
+            return true;
+        }
+        // 4 AM–5 AM closed for every selector, regardless of service type.
         if (h === 4 || h === 5) return true;
-        if (kind === "pickup")   return h === 2 || h === 3; // +2 AM–3 AM
-        if (kind === "delivery") return h === 2 || h === 3; // +2 AM–3 AM
+        // Pickup / Delivery also close 2 AM–3 AM.
+        if ((kind === "pickup" || kind === "delivery") && (h === 2 || h === 3)) return true;
         return false;
+    }
+
+    // Self-service needs no laundry products, so the service pills are disabled for it.
+    get servicesDisabled() {
+        return this.state.serviceType === "self_service";
     }
 
     // ── Turnaround calculation (mirrors pos.html logic) ───────────────────

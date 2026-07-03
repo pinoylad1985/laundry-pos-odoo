@@ -19,12 +19,12 @@ export async function allowWdfQty(fn) {
 }
 
 patch(PosOrderline.prototype, {
-    // Dry-Wet Clean / Shoe Clean are one item per line, so their quantity is locked
-    // at 1. Wash-Dry-Fold quantity = weight, set ONLY via the configurator (manual
+    // Dry-Wet Clean / Shoe Clean / Cap Clean are one item per line, so their quantity is
+    // locked at 1. Wash-Dry-Fold quantity = weight, set ONLY via the configurator (manual
     // numpad edits are ignored). Press may have qty > 1.
     setQuantity(quantity, keep_price) {
         const code = laundryCodeForProduct(this.product_id?.product_tmpl_id);
-        if (code === "dwc" || code === "shoe") {
+        if (code === "dwc" || code === "shoe" || code === "cap") {
             const q = parseFloat(quantity);
             // Locked at 1 — the numpad can't change it (0 stays allowed so the
             // line can still be removed).
