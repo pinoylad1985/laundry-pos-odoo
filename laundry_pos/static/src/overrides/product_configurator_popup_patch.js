@@ -117,7 +117,7 @@ patch(ProductConfiguratorPopup.prototype, {
             lastWdfWeight = this.laundryEnteredKg;
         }
         if (this.isLaundryService) {
-            lastLaundryNote = this.laundryNoteState.note || "";
+            lastLaundryNote = (this.laundryNoteState.note || "").toUpperCase();
         }
         return super.confirm(...arguments);
     },
@@ -132,7 +132,7 @@ patch(ProductConfiguratorPopup.prototype, {
             payload.laundryWeightKg = this.laundryRoundedKg; // rounded up to 0.5 → billed qty
         }
         if (this.isLaundryService) {
-            payload.laundryNote = this.laundryNoteState.note || "";
+            payload.laundryNote = (this.laundryNoteState.note || "").toUpperCase();
         }
         return payload;
     },

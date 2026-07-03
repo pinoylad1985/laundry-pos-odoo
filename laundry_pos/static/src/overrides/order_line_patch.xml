@@ -34,7 +34,7 @@
             </div>
             <!-- Per-service customer Note (entered in the configurator): shown in cart + receipt. -->
             <div t-if="vals.laundryIsService and line.customer_note" class="laundry-attrs ms-2">
-                <div class="attribute-line"><b>Note:</b> <span class="fst-italic" t-esc="line.customer_note"/></div>
+                <div class="attribute-line"><b>Note:</b> <span class="fst-italic text-uppercase" t-esc="line.customer_note"/></div>
             </div>
         </xpath>
     </t>
