@@ -293,12 +293,6 @@ export class NewOrderModal extends Component {
         });
     }
 
-    // Today as YYYY-MM-DD — used as the `min` on the native date pickers so past dates grey out.
-    get todayStr() {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    }
-
     setDate(field, value) {
         this.state[field] = value;
     }
@@ -313,10 +307,7 @@ export class NewOrderModal extends Component {
      * @param {number} h - hour 0..23
      */
     isHourDisabled(kind, h, dateVal) {
-        // Past hours are greyed out when the chosen date is today.
-        if (dateVal && dateVal === this.todayStr && h <= new Date().getHours()) {
-            return true;
-        }
+        // Past dates/times are allowed (no grey-out); only closed hours below are blocked.
         // 4 AM–5 AM closed for every selector, regardless of service type.
         if (h === 4 || h === 5) return true;
         // Pickup / Delivery also close 2 AM–3 AM.
