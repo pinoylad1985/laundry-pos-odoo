@@ -11,16 +11,13 @@
         <field name="model">pos.order</field>
         <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
         <field name="arch" type="xml">
-            <xpath expr="//list" position="attributes">
-                <attribute name="class" add="o_laundry_autosize" separator=" "/>
-            </xpath>
             <xpath expr="//list" position="inside">
-                <field name="laundry_service_type" optional="show"/>
-                <field name="laundry_secondary_type" optional="show"/>
-                <field name="laundry_due_datetime" optional="show"/>
-                <field name="laundry_status" optional="show"/>
-                <field name="laundry_staff_id" optional="show" widget="laundry_staff_pin"/>
-                <field name="laundry_folding_time" optional="show" widget="laundry_folding_pin"/>
+                <field name="laundry_service_type" optional="show" width="160px"/>
+                <field name="laundry_secondary_type" optional="show" width="110px"/>
+                <field name="laundry_due_datetime" optional="show" width="150px"/>
+                <field name="laundry_status" optional="show" width="110px"/>
+                <field name="laundry_staff_id" optional="show" widget="laundry_staff_pin" width="120px"/>
+                <field name="laundry_folding_time" optional="show" widget="laundry_folding_pin" width="170px"/>
             </xpath>
         </field>
     </record>
