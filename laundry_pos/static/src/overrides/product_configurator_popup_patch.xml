@@ -37,7 +37,7 @@
         <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="after">
             <div t-if="isLaundryService" class="laundry-note mt-3">
                 <label class="attribute_name fw-bolder mb-1 d-block">Note:</label>
-                <input type="text" class="form-control form-control-lg w-100"
+                <input type="text" class="form-control form-control-lg w-100 fst-italic"
                        placeholder="Add a note (optional)"
                        t-att-value="laundryNoteState.note"
                        t-on-input="(ev) => this.onLaundryNoteInput(ev)"/>
