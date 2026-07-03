@@ -251,8 +251,22 @@ export class NewOrderModal extends Component {
     // ── Step 3: Service Type ──────────────────────────────────────────────
 
     selectServiceType(code) {
+        // Self-service needs no products — drop any service lines already added.
+        if (code === "self_service") {
+            this._clearLaundryServiceLines();
+        }
         this.state.serviceType = code;
         this._resetSchedule();
+    }
+
+    // Remove every laundry service line from the order (used when switching to self-service).
+    _clearLaundryServiceLines() {
+        const order = this.pos.getOrder();
+        for (const line of this._orderLaundryLines()) {
+            if (typeof order?.removeOrderline === "function") order.removeOrderline(line);
+            else if (typeof line?.delete === "function") line.delete();
+        }
+        this.state.rev++;
     }
 
     _resetSchedule() {
