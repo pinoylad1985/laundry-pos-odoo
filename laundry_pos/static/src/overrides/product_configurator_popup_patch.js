@@ -33,6 +33,18 @@ export function consumeWdfWeight() {
     return v;
 }
 
+// Customer note pre-fill (on re-open) + last-confirm stash (applied by the add-flow).
+let editNote = null;
+export function setEditNote(note) {
+    editNote = note || null;
+}
+let lastLaundryNote = null;
+export function consumeLaundryNote() {
+    const v = lastLaundryNote;
+    lastLaundryNote = null;
+    return v;
+}
+
 patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
@@ -42,6 +54,8 @@ patch(ProductConfiguratorPopup.prototype, {
             invalid: false,
         });
         this.laundryKgRef = useRef("laundryWeightInput");
+        // Customer note input — pre-filled with the line's note on re-open.
+        this.laundryNoteState = useState({ note: editNote || "" });
         this._laundryPreselectEdit(); // restore the line's previous choices
         this._laundryPreselectTat(); // turnaround follows the order's TAT
     },
@@ -49,6 +63,24 @@ patch(ProductConfiguratorPopup.prototype, {
     // True when configuring a Wash-Dry-Fold product (drives the KG weight input).
     get isLaundryWdf() {
         return laundryCodeForProduct(this.props.productTemplate) === "wdf";
+    },
+
+    // True for any of the 5 laundry services (drives the Note box + required-attrs rule).
+    get isLaundryService() {
+        return !!laundryCodeForProduct(this.props.productTemplate);
+    },
+
+    onLaundryNoteInput(ev) {
+        this.laundryNoteState.note = ev.target.value;
+    },
+
+    // Every attribute must have a selection before Add (laundry services only).
+    get laundryAllAttributesSelected() {
+        return (this.validAttributeLineIds || []).every((line) => {
+            if (isTurnaround(line)) return true; // turnaround is auto-set + locked
+            const sel = this.state.attributes?.[line.attribute_id?.id]?.selected;
+            return sel && !(Array.isArray(sel) && sel.length === 0);
+        });
     },
 
     // The weight currently in the input, read straight from the DOM so it's reliable
@@ -71,6 +103,10 @@ patch(ProductConfiguratorPopup.prototype, {
 
     // Actual Weight is REQUIRED for Wash-Dry-Fold — block Add without a valid value.
     confirm() {
+        // Laundry services: every attribute must be selected before Add.
+        if (this.isLaundryService && !this.laundryAllAttributesSelected) {
+            return;
+        }
         if (this.isLaundryWdf && !(this.laundryEnteredKg > 0)) {
             this.laundryKgState.invalid = true;
             this.laundryKgRef?.el?.focus?.();
@@ -79,6 +115,9 @@ patch(ProductConfiguratorPopup.prototype, {
         if (this.isLaundryWdf) {
             // Stash for the product-grid add-flow (see PosStore.addLineToCurrentOrder).
             lastWdfWeight = this.laundryEnteredKg;
+        }
+        if (this.isLaundryService) {
+            lastLaundryNote = this.laundryNoteState.note || "";
         }
         return super.confirm(...arguments);
     },
@@ -91,6 +130,9 @@ patch(ProductConfiguratorPopup.prototype, {
         if (this.isLaundryWdf && actual > 0) {
             payload.laundryActualWeight = actual;            // entered value, shown as-is
             payload.laundryWeightKg = this.laundryRoundedKg; // rounded up to 0.5 → billed qty
+        }
+        if (this.isLaundryService) {
+            payload.laundryNote = this.laundryNoteState.note || "";
         }
         return payload;
     },

@@ -7,7 +7,7 @@ import { lsDelete } from "@laundry_pos/utils/laundry_storage";
 import { lineNeedsConfig, laundryCodeForProduct, wdfBilledQty } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
 import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
-import { consumeWdfWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { consumeWdfWeight, consumeLaundryNote } from "@laundry_pos/overrides/product_configurator_popup_patch";
 import { RiderSignoffPopup } from "@laundry_pos/rider_signoff/rider_signoff_popup";
 
 patch(PosStore.prototype, {
@@ -49,6 +49,11 @@ patch(PosStore.prototype, {
                     }
                 }
             });
+        }
+        // Apply the stashed customer note (from the configurator) to the just-created line.
+        const note = consumeLaundryNote();
+        if (note != null && target && typeof target.setCustomerNote === "function") {
+            target.setCustomerNote(note);
         }
         return line;
     },

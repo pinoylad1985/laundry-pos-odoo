@@ -10,7 +10,7 @@ import {
     buildConfiguredLineVals,
     wdfBilledQty,
 } from "@laundry_pos/utils/laundry_products";
-import { setEditSelection, setEditWeight } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { setEditSelection, setEditWeight, setEditNote } from "@laundry_pos/overrides/product_configurator_popup_patch";
 import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 
 patch(OrderSummary.prototype, {
@@ -43,6 +43,7 @@ patch(OrderSummary.prototype, {
         // Pre-fill the configurator with the line's current selection.
         setEditSelection((orderline.attribute_value_ids || []).map((v) => v.id));
         setEditWeight(orderline.laundry_actual_weight); // pre-fill the WDF box with the actual weight
+        setEditNote(orderline.customer_note); // pre-fill the Note box
         let payload;
         try {
             payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
@@ -51,6 +52,7 @@ patch(OrderSummary.prototype, {
         } finally {
             setEditSelection(null);
             setEditWeight(null);
+            setEditNote(null);
         }
         if (!payload) {
             // Cancelled — select the line so it can still be adjusted/deleted.

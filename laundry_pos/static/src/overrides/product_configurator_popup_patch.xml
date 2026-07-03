@@ -32,5 +32,19 @@
                 <small t-if="laundryKgState.invalid" class="text-danger">Actual Weight is required.</small>
             </div>
         </xpath>
+
+        <!-- Customer note at the BOTTOM, full width (laundry services only). -->
+        <xpath expr="//div[@t-foreach='this.validAttributeLineIds']" position="after">
+            <div t-if="isLaundryService" class="laundry-note mt-3">
+                <label class="attribute_name fw-bolder mb-1 d-block">Note:</label>
+                <input type="text" class="form-control form-control-lg w-100"
+                       placeholder="Add a note (optional)"
+                       t-att-value="laundryNoteState.note"
+                       t-on-input="(ev) => this.onLaundryNoteInput(ev)"/>
+                <small t-if="!laundryAllAttributesSelected" class="text-danger d-block mt-2">
+                    Please select all options before adding.
+                </small>
+            </div>
+        </xpath>
     </t>
 </templates>
