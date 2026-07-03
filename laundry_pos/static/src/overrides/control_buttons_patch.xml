@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Notes are entered per service line in the cart now, so hide the Note control
+         buttons ("Note" / "Customer Note"). -->
+    <t t-inherit="point_of_sale.ControlButtons" t-inherit-mode="extension">
+        <xpath expr="//InternalNoteButton" position="replace"/>
+        <xpath expr="//NoteButton" position="replace"/>
+    </t>
+</templates>

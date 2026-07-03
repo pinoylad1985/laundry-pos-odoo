@@ -43,6 +43,8 @@ patch(Orderline.prototype, {
         // Folding for WDF / Press count for Press at the bottom).
         vals.laundryWdf = code === "wdf";
         vals.laundryPress = code === "press";
+        // Any of the 5 major services gets a per-line customer Note box (cart) / line (receipt).
+        vals.laundryIsService = !!code;
         return vals;
     },
 

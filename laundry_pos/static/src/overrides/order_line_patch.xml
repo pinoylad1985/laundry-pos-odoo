@@ -6,6 +6,9 @@
             <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
         </xpath>
 
+        <!-- Hide the native customer-note badge; we render our own Note below the attributes. -->
+        <xpath expr="//li[hasclass('customer-note')]" position="replace"/>
+
         <!-- Receipt write-in counts (no checkbox): "Sorted pcs" at the top, then the
              attributes (checkbox + bold label + value), then "Folded pcs" (WDF) /
              "Pressed pcs" (Press) at the bottom. -->
@@ -28,6 +31,16 @@
             </div>
             <div t-if="vals.isReceipt and vals.laundryPress" class="laundry-attrs ms-2">
                 <div class="attribute-line"><b>Pressed pcs:</b> _____</div>
+            </div>
+            <!-- Per-service customer Note: editable box in the cart, printed text on the receipt. -->
+            <div t-if="vals.laundryIsService" class="laundry-attrs ms-2">
+                <div t-if="!vals.isReceipt" class="attribute-line d-flex align-items-center gap-1">
+                    <b>Note:</b>
+                    <input type="text" class="form-control form-control-sm py-0" style="max-width: 12rem;"
+                           t-att-value="line.customer_note or ''"
+                           t-on-change="(ev) => line.setCustomerNote(ev.target.value)"/>
+                </div>
+                <div t-elif="line.customer_note" class="attribute-line"><b>Note:</b> <t t-esc="line.customer_note"/></div>
             </div>
         </xpath>
     </t>
