@@ -2,10 +2,13 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
-import { AlertDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { AlertDialog, ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { lsDelete } from "@laundry_pos/utils/laundry_storage";
-import { lineNeedsConfig, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { lineNeedsConfig, laundryCodeForProduct, wdfBilledQty } from "@laundry_pos/utils/laundry_products";
 import { computeLaundryCopies, setPrintOnlyCopy } from "@laundry_pos/overrides/order_receipt_patch";
+import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
+import { consumeWdfWeight, consumeLaundryNote } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { RiderSignoffPopup } from "@laundry_pos/rider_signoff/rider_signoff_popup";
 
 patch(PosStore.prototype, {
     /**
@@ -23,6 +26,39 @@ patch(PosStore.prototype, {
     },
 
     /**
+     * Creating/configuring a line is a legitimate path for setting a Wash-Dry-Fold
+     * quantity (the numpad is not — see pos_order_line_patch). Run line creation
+     * inside the guard so WDF qty in `vals` is honored.
+     */
+    async addLineToCurrentOrder() {
+        const line = await allowWdfQty(() => super.addLineToCurrentOrder(...arguments));
+        // The CORE configure-flow (auto-opened when a WDF is added from the product
+        // grid) ignores our custom weight payload. Apply the stashed weight to the
+        // just-created line, then re-bill every WDF line for the new count.
+        const weight = consumeWdfWeight();
+        const target = line || this.getOrder()?.getSelectedOrderline?.();
+        if (weight && target && laundryCodeForProduct(target.product_id?.product_tmpl_id) === "wdf") {
+            target.laundry_actual_weight = weight;
+            const wdfLines = (this.getOrder()?.lines || []).filter(
+                (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
+            );
+            allowWdfQty(() => {
+                for (const l of wdfLines) {
+                    if (l.laundry_actual_weight) {
+                        l.setQuantity(wdfBilledQty(l.laundry_actual_weight, wdfLines.length));
+                    }
+                }
+            });
+        }
+        // Apply the stashed customer note (from the configurator) to the just-created line.
+        const note = consumeLaundryNote();
+        if (note != null && target && typeof target.setCustomerNote === "function") {
+            target.setCustomerNote(note);
+        }
+        return line;
+    },
+
+    /**
      * Block the Customer button when laundry setup was skipped.
      * Fires a DOM event so ProductScreen can flash the banner.
      * _needsLaundrySetup is explicitly set to false (not undefined) only after
@@ -34,6 +70,16 @@ patch(PosStore.prototype, {
             return false;
         }
         return super.selectPartner(currentOrder);
+    },
+
+    /**
+     * Keep the Order List (TicketScreen) independent of the Customer control
+     * button. The core seeds the order search with the current order's partner
+     * name, which auto-filters the list by whoever is on the order. We always
+     * open the Order List unfiltered so the two selections stay independent.
+     */
+    getDefaultSearchDetails() {
+        return { fieldName: "RECEIPT_NUMBER", searchTerm: "" };
     },
 
     /**
@@ -102,19 +148,51 @@ patch(PosStore.prototype, {
             (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
         );
         if (wdfLines.length) {
-            const minKg = wdfLines.length === 1 ? 6 : 4;
-            if (wdfLines.some((l) => (l.qty || 0) < minKg)) {
+            // Billed qty for a WDF line = its actual weight rounded UP to 0.5, but never
+            // below the current minimum (6KG single / 4KG when 2+). This bumps short
+            // lines UP and brings a previously force-bumped line back DOWN when the
+            // minimum changes (a WDF line added/removed in the cart flips the minimum).
+            const billedQty = (l) => wdfBilledQty(l.laundry_actual_weight, wdfLines.length);
+            const wrong = wdfLines.filter((l) => Math.abs((l.qty || 0) - billedQty(l)) > 0.001);
+            if (wrong.length) {
                 const dialog = this.dialog || this.env?.services?.dialog;
-                dialog?.add(AlertDialog, {
+                dialog?.add(ConfirmationDialog, {
                     title: "Minimum Wash-Dry-Fold weight",
                     body:
                         wdfLines.length === 1
-                            ? "Wash-Dry-Fold requires at least 6KG."
-                            : `Each Wash-Dry-Fold line requires at least 4KG (you have ${wdfLines.length} lines).`,
+                            ? "Wash-Dry-Fold has a 6KG minimum. Click here to set the billed weight."
+                            : "Wash-Dry-Fold has a 4KG minimum per line. Click here to set the billed weights.",
+                    confirmLabel: "Click here",
+                    confirm: () => {
+                        // Set each line's BILLED qty to satisfy the current minimum;
+                        // leave the entered Actual Weight untouched. Don't auto-proceed —
+                        // the cashier reviews and clicks Pay again.
+                        allowWdfQty(() => {
+                            for (const l of wdfLines) {
+                                l.setQuantity(billedQty(l));
+                            }
+                        });
+                    },
                 });
                 return;
             }
         }
+
+        // Pickup & Delivery / Locker orders require a rider sign-off (PIN) before payment.
+        const svc = order?.laundry_service_type;
+        if (["pickup_delivery", "locker"].includes(svc) && !order?._riderSignedOff) {
+            const dialog = this.dialog || this.env?.services?.dialog;
+            const payArgs = arguments;
+            dialog?.add(RiderSignoffPopup, {
+                onSignedOff: (riderName) => {
+                    order._riderSignedOff = true;
+                    order.laundry_rider = riderName;
+                    this.pay(...payArgs); // re-enter; now signed off -> proceeds to payment
+                },
+            });
+            return;
+        }
+
         return super.pay(...arguments);
     },
 });

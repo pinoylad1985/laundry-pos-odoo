@@ -1,0 +1,16 @@
+// Dropdown of matching customers under the LIST customer search bar.
+.laundry-customer-results {
+    position: absolute;
+    z-index: 1050;
+    left: 0.5rem;
+    right: 0.5rem;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+// Mutual exclusivity: dim + disable the order search bar while a customer
+// filter is active (marker class is on the controls row).
+.laundry-order-search-disabled .pos-search-bar {
+    opacity: 0.5;
+    pointer-events: none;
+}

@@ -9,8 +9,9 @@ export const LAUNDRY_MENU = [
     { code: "wdf",   label: "Wash-Dry-Fold", match: "wash-dry-fold" },
     { code: "dwc",   label: "Dry/Wet Clean", match: "dry/wet clean" },
     { code: "shoe",  label: "Shoe Clean",    match: "shoe clean" },
+    { code: "cap",   label: "Cap Clean",     match: "cap clean" },
     { code: "press", label: "Press",         match: "press" },
 ];
 
 // Service codes treated as "long turnaround" — affects schedule thresholds.
-export const LONG_SERVICE_CODES = ["dwc", "shoe"];
+export const LONG_SERVICE_CODES = ["dwc", "shoe", "cap"];

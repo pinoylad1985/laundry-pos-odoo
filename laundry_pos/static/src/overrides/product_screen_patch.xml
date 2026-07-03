@@ -2,7 +2,7 @@
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <xpath expr="//OrderSummary" position="before">
-            <t t-if="laundryState">
+            <t t-if="laundryState and !laundryState.modalOpen">
 
                 <!-- Setup complete: green summary bar -->
                 <div t-if="laundryState.mode === 'submitted'"
@@ -34,21 +34,36 @@
                     </button>
                 </div>
 
-                <!-- Setup skipped: red warning bar -->
+                <!-- Setup started but skipped/unfinished: amber prompt to finish it.
+                     (A blank, never-started order shows NO banner.) -->
                 <div t-elif="laundryState.mode === 'skipped'"
                      class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom"
-                     t-att-style="'min-height:52px;cursor:pointer;flex-shrink:0;background:' + (laundryState.flash ? '#ffffff' : '#fee2e2') + ';'"
-                     t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
-                    <span class="fw-semibold" style="color:#dc2626;font-size:0.9rem;">
-                        ⚠ Tap here to complete New Order details
+                     t-att-style="'flex-shrink:0;background:' + (laundryState.flash ? '#ffffff' : '#fef3c7') + ';'">
+                    <span class="fw-semibold" style="color:#b45309;font-size:0.9rem;">
+                        ⚠ New Order details incomplete
                     </span>
-                    <button class="btn btn-sm btn-danger ms-2 flex-shrink-0"
-                            t-on-click="(ev) => { ev.stopPropagation(); this._showLaundrySetupModal(pos.getOrder(), true); }">
-                        Set Up Now
+                    <button class="btn btn-sm btn-warning ms-2 flex-shrink-0"
+                            t-on-click="() => this._showLaundrySetupModal(pos.getOrder(), true)">
+                        Complete
                     </button>
                 </div>
 
             </t>
+        </xpath>
+
+        <!-- Lock only the PRODUCT GRID (right pane) until the New Order setup is done;
+             the cart (left pane) stays usable so settlement can use it. Not shown for
+             settlement orders. The navbar stays usable too. -->
+        <xpath expr="//div[hasclass('rightpane')]" position="attributes">
+            <attribute name="class">rightpane d-flex flex-grow-1 flex-column bg-secondary position-relative</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('rightpane')]" position="inside">
+            <div t-if="laundryState and laundryState.mode !== 'submitted'"
+                 class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-center"
+                 style="background:rgba(255,255,255,0.92);z-index:20;">
+                <i class="fa fa-lock fa-3x text-muted mb-3"/>
+                <h5 class="fw-semibold text-muted px-3">Tap <b>New Order</b> or <b>Settle Order</b> above to begin</h5>
+            </div>
         </xpath>
     </t>
 </templates>

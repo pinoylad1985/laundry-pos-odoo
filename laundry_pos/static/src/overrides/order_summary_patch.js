@@ -8,8 +8,10 @@ import {
     laundryCodeForProduct,
     withTatTurnaround,
     buildConfiguredLineVals,
+    wdfBilledQty,
 } from "@laundry_pos/utils/laundry_products";
-import { setEditSelection } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { setEditSelection, setEditWeight, setEditNote } from "@laundry_pos/overrides/product_configurator_popup_patch";
+import { allowWdfQty } from "@laundry_pos/overrides/pos_order_line_patch";
 
 patch(OrderSummary.prototype, {
     /**
@@ -40,6 +42,8 @@ patch(OrderSummary.prototype, {
 
         // Pre-fill the configurator with the line's current selection.
         setEditSelection((orderline.attribute_value_ids || []).map((v) => v.id));
+        setEditWeight(orderline.laundry_actual_weight); // pre-fill the WDF box with the actual weight
+        setEditNote(orderline.customer_note); // pre-fill the Note box
         let payload;
         try {
             payload = await makeAwaitable(this.dialog, ProductConfiguratorPopup, {
@@ -47,6 +51,8 @@ patch(OrderSummary.prototype, {
             });
         } finally {
             setEditSelection(null);
+            setEditWeight(null);
+            setEditNote(null);
         }
         if (!payload) {
             // Cancelled — select the line so it can still be adjusted/deleted.
@@ -63,7 +69,15 @@ patch(OrderSummary.prototype, {
         );
         const vals = buildConfiguredLineVals(this.pos, productTemplate, selectedIds);
         if (!vals.product_id) vals.product_id = orderline.product_id;
-        vals.qty = orderline.qty; // preserve quantity (e.g. merged Press lines)
+        // Wash-Dry-Fold: the BILLED qty is the rounded-up weight; otherwise preserve
+        // the line's quantity.
+        vals.qty = payload.laundryWeightKg || orderline.qty;
+        // Keep the ACTUAL entered weight on the line — shown as-is like a variant
+        // attribute in the cart and receipt (see order_line_patch).
+        const actual = payload.laundryActualWeight || orderline.laundry_actual_weight;
+        if (actual) {
+            vals.laundry_actual_weight = actual;
+        }
 
         // Swap the tapped line for the freshly configured one (the no-merge patch
         // keeps it as its own separate line).
@@ -73,6 +87,30 @@ patch(OrderSummary.prototype, {
         } else if (typeof orderline.delete === "function") {
             orderline.delete();
         }
-        await this.pos.addLineToCurrentOrder(vals, {}, false);
+        const newLine = await this.pos.addLineToCurrentOrder(vals, {}, false);
+        // Make sure the weight lands on the new line so it shows immediately the
+        // FIRST time (not only after re-opening the configurator).
+        if (newLine && actual) {
+            newLine.laundry_actual_weight = actual;
+        }
+        // Apply the WDF minimum-weight billing now (it's re-checked again at payment
+        // in case WDF lines are added/removed directly in the cart).
+        this._laundryApplyWdfBilling();
+    },
+
+    // Set every CONFIGURED Wash-Dry-Fold line's qty to its billed value — the rounded
+    // actual weight or the per-line minimum (6KG single / 4KG when 2+), whichever is
+    // higher. Unconfigured lines are left until they get a weight.
+    _laundryApplyWdfBilling() {
+        const wdf = (this.currentOrder?.lines || []).filter(
+            (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
+        );
+        allowWdfQty(() => {
+            for (const l of wdf) {
+                if (l.laundry_actual_weight) {
+                    l.setQuantity(wdfBilledQty(l.laundry_actual_weight, wdf.length));
+                }
+            }
+        });
     },
 });

@@ -6,6 +6,7 @@ import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/hooks/pos_hook";
 import { LAUNDRY_MENU, LONG_SERVICE_CODES } from "@laundry_pos/utils/laundry_instructions";
 import { findLaundryProduct, laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { partnerMatchesQuery, buildPartnerSearchDomain } from "@laundry_pos/utils/partner_search";
 
 const SERVICE_TYPES = [
     { code: "dropoff",           label: "Drop-off" },
@@ -58,6 +59,14 @@ export class NewOrderModal extends Component {
 
         // Pre-populate from previously submitted details (Change / after reload)
         this._applyInitialData(this.props.initialData);
+
+        // The order's customer is the single source of truth: if one is already set
+        // (via the Control Button or a previous setup), auto-select it here.
+        const orderPartner = this.pos.getOrder()?.getPartner?.();
+        if (orderPartner) {
+            this.state.customerType = "returning";
+            this.state.selectedPartner = orderPartner;
+        }
     }
 
     // Restore saved details into form state so the cashier can edit them
@@ -98,9 +107,42 @@ export class NewOrderModal extends Component {
         this.state.selectedPartner = null;
     }
 
+    // Press Enter → also search the SERVER. The POS only pre-loads a subset of
+    // customers, so a name like "Val" may not be loaded; this fetches matches.
+    onSearchKeydown(ev) {
+        if (ev.key === "Enter") {
+            this._serverSearchPartners();
+        }
+    }
+
+    async _serverSearchPartners() {
+        const q = this.state.partnerQuery.trim();
+        if (!q || this._searching) {
+            return;
+        }
+        this._searching = true;
+        try {
+            await this.pos.data.callRelated("res.partner", "get_new_partner", [
+                this.pos.config.id,
+                buildPartnerSearchDomain(q),
+                0,
+            ]);
+        } finally {
+            this._searching = false;
+            this.state.rev++; // re-run filteredPartners with the newly loaded customers
+        }
+    }
+
     pickPartner(partner) {
         this.state.selectedPartner = partner;
         this.state.partnerQuery = "";
+        this.pos.setPartnerToCurrentOrder(partner); // share with the Control Button / order
+    }
+
+    unselectPartner() {
+        this.state.selectedPartner = null;
+        this.state.partnerQuery = "";
+        this.pos.setPartnerToCurrentOrder(false); // clear it on the order too
     }
 
     editPartner(partner) {
@@ -116,20 +158,11 @@ export class NewOrderModal extends Component {
     }
 
     get filteredPartners() {
-        const query = this.state.partnerQuery.trim().toLowerCase();
+        void this.state.rev; // re-run after a server search loads more customers
+        const query = this.state.partnerQuery.trim();
         if (!query) return [];
         const all = this.pos.models["res.partner"]?.getAll() ?? [];
-        const s = (v) => String(v || "").toLowerCase();
-        return all
-            .filter((p) =>
-                s(p.name).includes(query) ||
-                s(p.phone).includes(query) ||
-                s(p.mobile).includes(query) ||
-                s(p.street).includes(query) ||
-                s(p.street2).includes(query) ||
-                s(p.city).includes(query)
-            )
-            .slice(0, 15);
+        return all.filter((p) => partnerMatchesQuery(p, query));
     }
 
     get showNoResults() {
@@ -160,6 +193,7 @@ export class NewOrderModal extends Component {
     // Pressing a pill adds the matching product to the REAL POS order as a new
     // unconfigured line (variants/attributes are chosen later in the cart).
     addService(code) {
+        if (this.servicesDisabled) return;
         const product = findLaundryProduct(this.pos, code);
         if (!product) return;
         this.pos.addLineToCurrentOrder({ product_tmpl_id: product }, {}, false);
@@ -217,8 +251,22 @@ export class NewOrderModal extends Component {
     // ── Step 3: Service Type ──────────────────────────────────────────────
 
     selectServiceType(code) {
+        // Self-service needs no products — drop any service lines already added.
+        if (code === "self_service") {
+            this._clearLaundryServiceLines();
+        }
         this.state.serviceType = code;
         this._resetSchedule();
+    }
+
+    // Remove every laundry service line from the order (used when switching to self-service).
+    _clearLaundryServiceLines() {
+        const order = this.pos.getOrder();
+        for (const line of this._orderLaundryLines()) {
+            if (typeof order?.removeOrderline === "function") order.removeOrderline(line);
+            else if (typeof line?.delete === "function") line.delete();
+        }
+        this.state.rev++;
     }
 
     _resetSchedule() {
@@ -245,6 +293,12 @@ export class NewOrderModal extends Component {
         });
     }
 
+    // Today as YYYY-MM-DD — used as the `min` on the native date pickers so past dates grey out.
+    get todayStr() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+
     setDate(field, value) {
         this.state[field] = value;
     }
@@ -258,12 +312,21 @@ export class NewOrderModal extends Component {
      * @param {string} kind - 'claim' | 'pickup' | 'delivery'
      * @param {number} h - hour 0..23
      */
-    isHourDisabled(kind, h) {
-        // 4 AM–5 AM closed for every selector, regardless of service type
+    isHourDisabled(kind, h, dateVal) {
+        // Past hours are greyed out when the chosen date is today.
+        if (dateVal && dateVal === this.todayStr && h <= new Date().getHours()) {
+            return true;
+        }
+        // 4 AM–5 AM closed for every selector, regardless of service type.
         if (h === 4 || h === 5) return true;
-        if (kind === "pickup")   return h === 2 || h === 3; // +2 AM–3 AM
-        if (kind === "delivery") return h === 2 || h === 3; // +2 AM–3 AM
+        // Pickup / Delivery also close 2 AM–3 AM.
+        if ((kind === "pickup" || kind === "delivery") && (h === 2 || h === 3)) return true;
         return false;
+    }
+
+    // Self-service needs no laundry products, so the service pills are disabled for it.
+    get servicesDisabled() {
+        return this.state.serviceType === "self_service";
     }
 
     // ── Turnaround calculation (mirrors pos.html logic) ───────────────────
@@ -346,9 +409,16 @@ export class NewOrderModal extends Component {
     get canConfirm() {
         // Variant/attribute selection happens later in the main POS cart and is
         // enforced at payment, so it is not required to confirm the modal.
+        // Self-service does not require a service to be selected.
+        const isSelfService = this.state.serviceType === "self_service";
+        // A Returning customer MUST have a partner actually selected (even after a
+        // Change that cleared it); a New customer doesn't (created later / walk-in).
+        const customerOk =
+            this.state.customerType === "new" ||
+            (this.state.customerType === "returning" && !!this.state.selectedPartner);
         return !!(
-            this.state.customerType &&
-            this.hasAnyService &&
+            customerOk &&
+            (isSelfService || this.hasAnyService) &&
             this.state.serviceType &&
             this.scheduleComplete &&
             !this.turnaroundError

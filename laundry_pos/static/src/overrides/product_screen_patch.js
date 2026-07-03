@@ -4,6 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { NewOrderModal } from "@laundry_pos/new_order_modal/new_order_modal";
+import { SettleModal } from "@laundry_pos/settle_modal/settle_modal";
 import { lsSave, lsLoad } from "@laundry_pos/utils/laundry_storage";
 import {
     laundryCodeForProduct,
@@ -27,7 +28,7 @@ patch(ProductScreen.prototype, {
         super.setup();
 
         // mode: 'idle' | 'submitted' | 'skipped'
-        this.laundryState = useState({ mode: "idle", flash: false, turnaround: null });
+        this.laundryState = useState({ mode: "idle", flash: false, turnaround: null, modalOpen: false });
 
         // Sync banner mode when switching orders or returning to POS
         useEffect(
@@ -47,9 +48,11 @@ patch(ProductScreen.prototype, {
                 if (order?.laundry_service_type) {
                     this.laundryState.mode = "submitted";
                     this.laundryState.turnaround = stored?.turnaround || order?.laundry_turnaround || null;
+                    if (order && !order._laundryPurpose) order._laundryPurpose = "sell";
                 } else if (stored?.status === "skipped" || order?._laundrySetupProcessed) {
                     this.laundryState.mode = "skipped";
                     this.laundryState.turnaround = null;
+                    if (order && !order._laundryPurpose) order._laundryPurpose = "sell";
                 } else {
                     this.laundryState.mode = "idle";
                     this.laundryState.turnaround = null;
@@ -58,31 +61,64 @@ patch(ProductScreen.prototype, {
             () => [this.pos.getOrder()?.uuid]
         );
 
-        // Show modal for freshly created orders
-        useEffect(
-            () => {
-                const order = this.pos.getOrder();
-                if (order?._needsLaundrySetup) {
-                    order._needsLaundrySetup = false;
-                    this._showLaundrySetupModal(order, false);
-                }
-            },
-            () => [this.pos.getOrder()?.uuid]
-        );
+        // The setup modal is NOT auto-opened — the cashier opens it via the
+        // "Set Up Now" button on the setup banner.
 
-        // Listen for flash signal fired by PosStore when Customer button is blocked
+        // Listen for the flash signal (PosStore blocks the Customer button) and for
+        // the navbar Settle button.
         onMounted(() => {
             this._laundryFlashHandler = () => this._flashBanner();
             document.addEventListener("laundry-flash-needed", this._laundryFlashHandler);
+
+            this._laundryActionHandler = (ev) => this._runLaundryAction(ev.detail?.action);
+            document.addEventListener("laundry-action", this._laundryActionHandler);
         });
         onWillUnmount(() => {
             document.removeEventListener("laundry-flash-needed", this._laundryFlashHandler);
+            document.removeEventListener("laundry-action", this._laundryActionHandler);
         });
     },
 
     _flashBanner() {
         this.laundryState.flash = true;
         setTimeout(() => { this.laundryState.flash = false; }, 600);
+    },
+
+    // ── Settle (navbar Settle button) ─────────────────────────────────────
+
+    async _runLaundryAction(action) {
+        if (action === "new_order") {
+            // Open the setup modal for the CURRENT order (same path as the banner's
+            // "Set Up Now"). We deliberately do NOT create/navigate to a new order —
+            // that navigation fails under the POS service worker. Start the next
+            // order via the native ＋ instead.
+            if (!this.pos.getOrder()) {
+                this.pos.addNewOrder();
+            }
+            const order = this.pos.getOrder();
+            // Commit this order to a SALE the instant New Order is clicked, so Settle
+            // disables immediately (mutually exclusive) — not only once completed.
+            if (order) order._laundryPurpose = "sell";
+            return this._showLaundrySetupModal(order, false);
+        }
+        if (action === "settle") {
+            const order = this.pos.getOrder();
+            if (order) order._laundryPurpose = "settle"; // disables New Order immediately
+            return this._openSettleModal();
+        }
+    },
+
+    _openSettleModal() {
+        this.dialog.add(SettleModal, {});
+    },
+
+    // True when the current order is a settlement (deposit / settle orders or
+    // invoices) — those use the cart, so the product-grid lock must not show.
+    _laundryIsSettlement() {
+        const order = this.pos.getOrder();
+        if (!order) return false;
+        if (order.is_settling_account) return true;
+        return (order.lines || []).some((l) => l.settled_order_id || l.settled_invoice_id);
     },
 
     _getLaundryServiceLabel() {
@@ -201,9 +237,16 @@ patch(ProductScreen.prototype, {
         const stored = lsLoad(order?.uuid);
         const initData = (stored && (stored.serviceType || stored.customerType)) ? stored : null;
 
-        const result = await makeAwaitable(this.dialog, NewOrderModal, {
-            initialData: initData || undefined,
-        });
+        // While the setup modal is open, suppress the setup banner above the cart.
+        this.laundryState.modalOpen = true;
+        let result;
+        try {
+            result = await makeAwaitable(this.dialog, NewOrderModal, {
+                initialData: initData || undefined,
+            });
+        } finally {
+            this.laundryState.modalOpen = false;
+        }
 
         // Explicit "Skip for now" — save whatever was selected for later editing
         if (result?.skipped) {

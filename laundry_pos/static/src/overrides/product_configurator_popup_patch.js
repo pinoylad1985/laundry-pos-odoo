@@ -1,7 +1,9 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
+import { useState, useRef } from "@odoo/owl";
 import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
+import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 function isTurnaround(attrLine) {
     return String(attrLine?.attribute_id?.name || "").startsWith("Turnaround");
@@ -14,11 +16,130 @@ export function setEditSelection(ids) {
     editSelectionIds = ids && ids.length ? ids : null;
 }
 
+// Current weight (kg) of the line being re-configured, so the Wash-Dry-Fold weight
+// input opens pre-filled. Set by order_summary_patch before opening the configurator.
+let editWeightKg = null;
+export function setEditWeight(kg) {
+    editWeightKg = kg || null;
+}
+
+// Weight from the last WDF configurator confirm. PosStore.addLineToCurrentOrder reads
+// this to apply the weight even when the line was configured by the CORE add-flow
+// (adding a WDF from the product grid), which ignores our custom payload fields.
+let lastWdfWeight = null;
+export function consumeWdfWeight() {
+    const v = lastWdfWeight;
+    lastWdfWeight = null;
+    return v;
+}
+
+// Customer note pre-fill (on re-open) + last-confirm stash (applied by the add-flow).
+let editNote = null;
+export function setEditNote(note) {
+    editNote = note || null;
+}
+let lastLaundryNote = null;
+export function consumeLaundryNote() {
+    const v = lastLaundryNote;
+    lastLaundryNote = null;
+    return v;
+}
+
 patch(ProductConfiguratorPopup.prototype, {
     setup() {
         super.setup();
+        // Wash-Dry-Fold weight input — pre-filled with the line's current weight on re-open.
+        this.laundryKgState = useState({
+            kg: editWeightKg != null ? String(editWeightKg) : "",
+            invalid: false,
+        });
+        this.laundryKgRef = useRef("laundryWeightInput");
+        // Customer note input — pre-filled with the line's note on re-open.
+        this.laundryNoteState = useState({ note: editNote || "" });
         this._laundryPreselectEdit(); // restore the line's previous choices
         this._laundryPreselectTat(); // turnaround follows the order's TAT
+    },
+
+    // True when configuring a Wash-Dry-Fold product (drives the KG weight input).
+    get isLaundryWdf() {
+        return laundryCodeForProduct(this.props.productTemplate) === "wdf";
+    },
+
+    // True for any of the 5 laundry services (drives the Note box + required-attrs rule).
+    get isLaundryService() {
+        return !!laundryCodeForProduct(this.props.productTemplate);
+    },
+
+    onLaundryNoteInput(ev) {
+        this.laundryNoteState.note = ev.target.value;
+    },
+
+    // Every attribute must have a selection before Add (laundry services only).
+    get laundryAllAttributesSelected() {
+        return (this.validAttributeLineIds || []).every((line) => {
+            if (isTurnaround(line)) return true; // turnaround is auto-set + locked
+            const sel = this.state.attributes?.[line.attribute_id?.id]?.selected;
+            return sel && !(Array.isArray(sel) && sel.length === 0);
+        });
+    },
+
+    // The weight currently in the input, read straight from the DOM so it's reliable
+    // at confirm time (avoids a reactive-state timing miss on the first open).
+    get laundryEnteredKg() {
+        const el = this.laundryKgRef?.el;
+        return parseFloat(el ? el.value : this.laundryKgState.kg);
+    },
+
+    onLaundryWeightInput(ev) {
+        this.laundryKgState.kg = ev.target.value;
+        this.laundryKgState.invalid = false;
+    },
+
+    // The entered weight rounded UP to the nearest 0.5 KG (0 if blank/invalid).
+    get laundryRoundedKg() {
+        const kg = this.laundryEnteredKg;
+        return kg > 0 ? Math.ceil(kg * 2) / 2 : 0;
+    },
+
+    // Actual Weight is REQUIRED for Wash-Dry-Fold — block Add without a valid value.
+    confirm() {
+        // Laundry services: every attribute must be selected before Add.
+        if (this.isLaundryService && !this.laundryAllAttributesSelected) {
+            return;
+        }
+        if (this.isLaundryWdf) {
+            // Require a real weighed value: > 0 with EXACTLY 2 decimal places (e.g. 3.25),
+            // so a proper scale reading is entered (not a rounded/placeholder number).
+            const raw = String(this.laundryKgRef?.el?.value ?? "").trim();
+            if (!(this.laundryEnteredKg > 0) || !/^\d+\.\d{2}$/.test(raw)) {
+                this.laundryKgState.invalid = true;
+                this.laundryKgRef?.el?.focus?.();
+                return;
+            }
+        }
+        if (this.isLaundryWdf) {
+            // Stash for the product-grid add-flow (see PosStore.addLineToCurrentOrder).
+            lastWdfWeight = this.laundryEnteredKg;
+        }
+        if (this.isLaundryService) {
+            lastLaundryNote = (this.laundryNoteState.note || "").toUpperCase();
+        }
+        return super.confirm(...arguments);
+    },
+
+    // Ride the weight along in the configurator payload: the ACTUAL entered value
+    // (shown as-is, like an attribute) plus the rounded value that becomes the qty.
+    computePayload() {
+        const payload = super.computePayload();
+        const actual = this.laundryEnteredKg;
+        if (this.isLaundryWdf && actual > 0) {
+            payload.laundryActualWeight = actual;            // entered value, shown as-is
+            payload.laundryWeightKg = this.laundryRoundedKg; // rounded up to 0.5 → billed qty
+        }
+        if (this.isLaundryService) {
+            payload.laundryNote = (this.laundryNoteState.note || "").toUpperCase();
+        }
+        return payload;
     },
 
     /**

@@ -71,6 +71,11 @@ patch(ReceiptHeader.prototype, {
         return d ? (SERVICE_LABELS[d.svcType] || "") : "";
     },
 
+    // Customer tags are printed only for Locker orders.
+    get laundryIsLocker() {
+        return this._laundryData()?.svcType === "locker";
+    },
+
     get laundryPickup() {
         const d = this._laundryData();
         return d ? fmtDateTime12(d.schedule.pickupDate, d.schedule.pickupHour) : "";
@@ -91,5 +96,10 @@ patch(ReceiptHeader.prototype, {
             return fmtDateTime12(d.schedule.claimDate, d.schedule.claimHour);
         }
         return "";
+    },
+
+    // Rider who signed off on a Pickup & Delivery / Locker order (set at payment).
+    get laundryRider() {
+        return this.props.order?.laundry_rider || "";
     },
 });

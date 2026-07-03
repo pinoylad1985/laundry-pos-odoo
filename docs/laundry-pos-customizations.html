@@ -62,7 +62,8 @@
       <li><a href="#backend">Backend models &amp; fields</a></li>
       <li><a href="#products">Service products (name matching)</a></li>
       <li><a href="#modal">New Order modal &amp; turnaround logic</a></li>
-      <li><a href="#banner">Order banner &amp; persistence</a></li>
+      <li><a href="#hub">Navbar hub buttons, mutual exclusivity, Settle &amp; Order List</a></li>
+      <li><a href="#banner">Setup banner, grid lock &amp; persistence</a></li>
       <li><a href="#lines">Cart lines: merge, quantity, ordering</a></li>
       <li><a href="#configurator">Configurator behavior &amp; crash guard</a></li>
       <li><a href="#payment">Payment gates</a></li>
@@ -80,9 +81,13 @@
     <tr><th>Area</th><th>Files</th></tr>
     <tr><td>Models</td><td><span class="file">models/pos_order.py, res_partner.py, laundry_service_type.py</span></td></tr>
     <tr><td>Data</td><td><span class="file">data/laundry_service_type_data.xml, data/demangle_server_action.xml</span></td></tr>
-    <tr><td>Shared utils</td><td><span class="file">static/src/utils/laundry_products.js, laundry_instructions.js, laundry_storage.js</span></td></tr>
+    <tr><td>Shared utils</td><td><span class="file">static/src/utils/laundry_products.js, laundry_instructions.js, laundry_storage.js, partner_search.js</span></td></tr>
     <tr><td>New Order modal</td><td><span class="file">static/src/new_order_modal/new_order_modal.js + .xml</span></td></tr>
+    <tr><td>Settle modal</td><td><span class="file">static/src/settle_modal/settle_modal.js + .xml + .scss</span></td></tr>
     <tr><td>POS store / screen</td><td><span class="file">overrides/pos_store.js, product_screen_patch.js/.xml</span></td></tr>
+    <tr><td>Navbar hub buttons</td><td><span class="file">overrides/navbar_patch.js/.xml</span> — New Order / Settle Order / Order List</td></tr>
+    <tr><td>Order List search</td><td><span class="file">overrides/ticket_screen_patch.js/.xml/.scss</span></td></tr>
+    <tr><td>Partner search</td><td><span class="file">overrides/partner_search_patch.js, partner_block_patch.js/.xml</span> (+ utils/partner_search.js)</td></tr>
     <tr><td>Cart / lines</td><td><span class="file">overrides/order_display_patch.js, order_summary_patch.js, order_line_patch.js/.xml, pos_order_line_patch.js</span></td></tr>
     <tr><td>Configurator</td><td><span class="file">overrides/product_configurator_popup_patch.js/.xml</span></td></tr>
     <tr><td>Receipt</td><td><span class="file">overrides/order_receipt_patch.js/.xml, receipt_header_patch.js/receipt_header.xml, laundry_receipt.scss</span></td></tr>
@@ -110,7 +115,12 @@
     <tr><td><code>laundry_due_datetime</code></td><td>Datetime, computed+stored</td><td>"Cashier Due" = delivery datetime, else claim datetime</td></tr>
     <tr><td><code>laundry_customer_phone</code></td><td>Char, computed+stored</td><td>from <code>partner_id.phone</code></td></tr>
     <tr><td><code>laundry_customer_address</code></td><td>Char, computed+stored</td><td><code>street</code> + <code>street2</code></td></tr>
+    <tr><td><code>laundry_secondary_type</code></td><td>Selection, computed+stored</td><td>Order / Payment / Adjustment / Refund — coarse reporting class (a POS Orders list column). Refund (<code>is_refund</code> or refunded via <code>lines.refund_orderline_ids</code>) &gt; Payment (settle lines or legacy <code>x_studio_category</code>='Payment') &gt; Adjustment (legacy 'Adjustment') &gt; Order (has a service type) &gt; blank. Depends on <code>lines.refund_orderline_ids</code>, NOT the non-stored <code>refund_orders_count</code>.</td></tr>
   </table>
+  <p><strong><code>pos.order.line.laundry_actual_weight</code></strong> (Float, loaded) — the real weighed value entered in the
+    Wash-Dry-Fold configurator; shown as-is (like a variant attribute) in the cart and receipt, while the line qty is the
+    rounded/min-billed value (§3). The old list-view <code>laundry_manual_category</code> dropdown was <strong>removed</strong>
+    (superseded by <code>laundry_secondary_type</code>).</p>
   <div class="why"><strong>Why computed-stored, not <code>related</code>:</strong> a stored <code>related</code> field is
     writable and would push values back to <code>res.partner</code> — POS could wipe the customer's phone on order sync.
     A computed field has no inverse, so it stays one-way (partner → order) and any stale value POS sends is corrected on
@@ -123,7 +133,7 @@
   <div class="why"><strong>Why:</strong> the receipt needs customer tags without loading the
     <code>res.partner.category</code> model. Relational loading only pulls categories referenced by pre-loaded partners,
     so tags on customers fetched on-demand (cashier search) would otherwise be missing. A precomputed string on the
-    partner is always present.</div>
+    partner is always present. The same on-demand concern drives the multi-word <strong>server search</strong> (§5).</div>
 
   <h2 id="products">3. Service products (name matching) <span class="file">utils/laundry_instructions.js, laundry_products.js</span></h2>
   <p>Four service products are recognised by name (no hardcoded IDs):</p>
@@ -138,20 +148,31 @@
      <strong>leading word boundary</strong> so <code>"press"</code> never matches <code>"(express)"</code>. Lookups go
      through live <code>pos.models</code> (active + <code>available_in_pos</code>), so price/attributes/variants always
      reflect the real POS product.</p>
+  <p><strong>Wash-Dry-Fold is weight-based.</strong> The cashier enters the <strong>Actual Weight (KG)</strong> in the product
+     configurator (a <strong>required</strong> custom input); it's stored on <code>pos.order.line.laundry_actual_weight</code>
+     and shown as-is, like a variant attribute, in the cart and receipt (the line qty displays to 1 decimal). The billed
+     <strong>qty</strong> = <code>wdfBilledQty(actual, count)</code> = <code>max(actual rounded UP to 0.5kg, min)</code>, where
+     min is <strong>6kg</strong> for a single WDF line and <strong>4kg</strong> when there are two or more. It's applied at
+     configure (Add) — <code>OrderSummary._laundryApplyWdfBilling</code> sweeps every configured WDF line — and re-checked at
+     payment (§9). WDF qty is <strong>locked from manual numpad edits</strong>: only the configurator and the min-weight bump
+     may set it (a guard flag, <code>allowWdfQty</code>, in <code>pos_order_line_patch.js</code>; <code>setQuantity(0)</code> /
+     removing the line still works). DWC/Shoe stay locked to 1; Press may exceed 1.</p>
 
   <h2 id="modal">4. New Order modal &amp; turnaround logic <span class="file">new_order_modal.js, product_screen_patch.js, pos_store.js</span></h2>
-  <p>A new order auto-flags <code>_needsLaundrySetup</code> (<code>PosStore.addNewOrder</code>); <code>ProductScreen</code>
-     detects it via a <code>useEffect</code> and opens the modal after navigation.</p>
-  <div class="why"><strong>Why this indirection:</strong> <code>addNewOrder</code> must stay <em>synchronous</em> — it's
-    called in 10+ places without <code>await</code>; making it async leaves <code>order.uuid</code> undefined when
-    navigation fires (<code>/product/undefined</code> crash). So we flag the order and let the screen react.</div>
+  <p>The setup modal is opened by the navbar <strong>New Order</strong> button (or the banner's <strong>Complete</strong>
+     button) <em>for the current order</em> — see §5. It is <strong>not</strong> auto-opened.</p>
   <h3>The 4 steps</h3>
   <ol>
-    <li><strong>Customer</strong> — New / Returning; live partner search (name, phone, mobile, street, city) with select or "edit".</li>
+    <li><strong>Customer</strong> — New / Returning; live multi-word partner search (name, phone, mobile, street, city…) with select or "edit". Press Enter to also search the server.</li>
     <li><strong>Services</strong> — pressing a pill calls <code>addLineToCurrentOrder</code>, adding the real product as an unconfigured line. Pills highlight while &ge;1 line of that product is on the order.</li>
     <li><strong>Service Type</strong> — the 5 types; changing it resets the schedule.</li>
     <li><strong>Schedule</strong> — quick date pills (Today / Tomorrow / +2 days) + AM/PM hour pills. Closed hours: 4–5 AM for all selectors; pickup &amp; delivery also block 2–3 AM.</li>
   </ol>
+  <div class="note"><strong>Confirm requirements:</strong> <em>Continue</em> stays disabled until every required field is set —
+    including a <strong>selected customer when the type is "Returning"</strong> (New customers need none), and a service line
+    unless the service type is <strong>Self-service</strong> (which needs none). This is enforced whether filling out the
+    first time or after a "Change". The chosen customer is <strong>shared with the order</strong> (= the Customer Control
+    Button, whichever is set first), pre-selected on re-open with an <em>Unselect</em> button to change it.</div>
   <h3>Turnaround (TAT) — auto-decided by the schedule, not the cashier</h3>
   <table>
     <tr><th></th><th>Express threshold</th><th>Minimum lead time</th></tr>
@@ -162,25 +183,69 @@
      (below threshold) or <strong>Regular</strong>. Below the minimum lead time it shows a validation error and blocks
      confirm. <strong>Skip for now</strong> still saves whatever was selected.</p>
 
-  <h2 id="banner">5. Order banner &amp; persistence <span class="file">product_screen_patch.js, laundry_storage.js, pos_store.js</span></h2>
+  <h2 id="hub">5. Navbar hub buttons, mutual exclusivity, Settle &amp; Order List <span class="file">navbar_patch.js/.xml, product_screen_patch.js, settle_modal/, ticket_screen_patch.*</span></h2>
+  <p>Three buttons live in the navbar (desktop = text, mobile = icons): <strong>New Order</strong>,
+     <strong>Settle Order</strong>, <strong>Order List</strong>. A blank order has no chosen purpose — there is
+     <strong>no setup banner</strong> for it, just a locked product grid reading "Tap New Order or Settle Order above to
+     begin". Clicking a button decides the order's purpose.</p>
   <ul>
-    <li>A banner on the product screen shows customer type, services, service type, TAT and schedule; it <strong>flashes</strong> when blocked actions are attempted.</li>
-    <li>The <strong>Customer button is blocked</strong> until setup is done — <code>PosStore.selectPartner</code> returns false and dispatches a <code>laundry-flash-needed</code> event when setup was skipped.</li>
-    <li><strong>Adding products is blocked</strong> when setup was skipped (<code>addProductToOrder</code> flashes instead).</li>
-    <li>Details persist in <code>localStorage</code> keyed by order UUID (<code>laundry_storage.js</code>), rotating out the oldest beyond 100 entries.</li>
-    <li>On order delete/cancel, <code>PosStore.removeOrder</code> purges the stored entry so a reused UUID can't resurrect stale data.</li>
+    <li><strong>New Order</strong> → opens the New Order setup modal <em>for the current order</em>. It deliberately does
+        <strong>not</strong> create or navigate to a new order (that navigation fails under the POS service worker); use the
+        native <strong>＋</strong> to start the next order. The navbar fires a <code>laundry-action</code> DOM event handled
+        by <code>ProductScreen._runLaundryAction</code>.</li>
+    <li><strong>Settle Order</strong> → opens the <strong>Settle modal</strong> (<span class="file">settle_modal/</span>): a
+        customer search where each row surfaces that customer's real settlement action — <em>Settle orders / Settle invoices /
+        Settle due amount / Deposit money</em> — derived from <code>getPartnerCredit</code> and run through the stock
+        <code>pos_settle_due</code> flows. A customer already on the order (Control Button) pre-fills it, shown with
+        <em>Unselect</em> + the applicable settle buttons together.</li>
+    <li><strong>Order List</strong> → navigates to the Orders screen (<code>TicketScreen</code>);
+        <span class="file">ticket_screen_patch</span> adds a customer-search bar above the core "Search Orders" bar
+        (the two are mutually exclusive — using one greys out the other).</li>
+  </ul>
+  <h3>Mutual exclusivity — an order is either a sale or a settlement</h3>
+  <p>Clicking New Order or Settle Order sets <code>order._laundryPurpose</code> (<code>'sell'</code> / <code>'settle'</code>)
+     <strong>immediately</strong>. The navbar getters <code>laundryActiveSell</code> / <code>laundryActiveSettle</code> then
+     <strong>highlight</strong> the chosen button (solid primary) and <strong>disable</strong> the opposite one. The flag is
+     restored after a reload from the stored status / settle lines. To switch an order's type, start a fresh order with ＋.</p>
+  <div class="warn"><strong>Why the buttons need <code>z-index</code>:</strong> the core <code>pos-leftheader</code> contains
+     an invisible <code>position-relative w-100</code> layer. By CSS painting rules a positioned element paints over static
+     ones, so that layer sat on top of the leftmost button (New Order) and swallowed its clicks. The buttons are lifted with
+     <code>position:relative; z-index</code> — don't remove it.</div>
+  <h3>Multi-word customer search (used everywhere)</h3>
+  <p><span class="file">utils/partner_search.js</span> provides <code>partnerMatchesQuery</code> (every typed word must match
+     some field — name, parent name, phone, mobile, street, city, zip, VAT, email, barcode…) and
+     <code>buildPartnerSearchDomain</code> for an Enter-to-search <strong>server</strong> lookup (POS only pre-loads a subset
+     of customers, so a name like "Val" may not be loaded yet). It is used by the New Order modal, Settle modal, Order List
+     bar, and the core Customer picker. <span class="file">partner_block_patch</span> redirects the core "Settle / Deposit"
+     partner-line menu items into the Settle modal so there's one settle path.</p>
+  <div class="note"><strong>Order List is independent of the Customer Control Button.</strong>
+     <code>PosStore.getDefaultSearchDetails</code> is overridden to always return a blank search; core otherwise seeds the
+     Order List's order search with the current order's partner name, coupling the two.</div>
+
+  <h2 id="banner">6. Setup banner, grid lock &amp; persistence <span class="file">product_screen_patch.js/.xml, laundry_storage.js, pos_store.js</span></h2>
+  <p>The strip above the cart reflects the current order's setup state:</p>
+  <ul>
+    <li><strong>Blank / idle order</strong> — <strong>no banner</strong>. The product grid is locked with an overlay
+        ("Tap New Order or Settle Order above to begin"); the cart stays usable so a settlement can use it.</li>
+    <li><strong>Submitted</strong> — a green summary bar (customer type, services, service type, TAT, schedule) with a
+        <strong>Change</strong> button to re-open the modal; the grid unlocks.</li>
+    <li><strong>Skipped / incomplete</strong> — an amber bar with a <strong>Complete</strong> button to finish setup.</li>
+    <li>The <strong>Customer button is blocked</strong> until setup is done — <code>PosStore.selectPartner</code> returns
+        false and dispatches a <code>laundry-flash-needed</code> event to flash the banner.</li>
+    <li>Details persist in <code>localStorage</code> keyed by order UUID (rotating out the oldest beyond 100 entries), and
+        are purged on order delete/cancel so a reused UUID can't resurrect stale data.</li>
   </ul>
   <div class="why"><strong>Why localStorage:</strong> the <code>laundry_*</code> JS fields are not synced to the server,
     so they vanish on POS reload / model rebuild. The store rehydrates them (and the modal pre-fills from it on "Change").</div>
 
-  <h2 id="lines">6. Cart lines: merge, quantity, ordering <span class="file">pos_store.js, pos_order_line_patch.js, order_display_patch.js</span></h2>
+  <h2 id="lines">7. Cart lines: merge, quantity, ordering <span class="file">pos_store.js, pos_order_line_patch.js, order_display_patch.js</span></h2>
   <ul>
     <li><strong>Never merge lines</strong> — <code>tryMergeOrderline</code> forces <code>merge=false</code>, so every pill press / tap is its own line. Quantity is adjusted via the numpad.</li>
     <li><strong>Quantity rules</strong> (<code>PosOrderline.setQuantity</code>): Dry/Wet Clean &amp; Shoe Clean are locked to <code>1</code> (0 still allowed so the line can be deleted); Wash-Dry-Fold is per-KG (editable); Press may exceed 1.</li>
     <li><strong>Fixed display order</strong> (<code>OrderDisplay.comboSortedLines</code>): WDF → Press → Dry/Wet Clean → Shoe Clean → everything else. Used by both the cart and the receipt so they always match.</li>
   </ul>
 
-  <h2 id="configurator">7. Configurator behavior &amp; crash guard <span class="file">order_summary_patch.js, product_configurator_popup_patch.js</span></h2>
+  <h2 id="configurator">8. Configurator behavior &amp; crash guard <span class="file">order_summary_patch.js, product_configurator_popup_patch.js</span></h2>
   <ul>
     <li><strong>Tap a laundry line → configurator</strong>. Tapping opens a <em>fresh</em> configurator (productTemplate only); after confirming, the line is swapped for the configured one (no-merge keeps it separate), quantity preserved, and it's selected so the numpad can adjust qty/weight.</li>
     <li><strong>Pre-fill on re-open</strong> — the configurator restores the line's existing attribute selection rather than a blank form.</li>
@@ -194,14 +259,18 @@
     mis-migrated, e.g. after a DB restore) throws "Cannot set properties of undefined". Pre-seeding every key prevents the
     whole popup from crashing.</div>
 
-  <h2 id="payment">8. Payment gates <span class="file">pos_store.js</span></h2>
-  <p>Both Pay buttons funnel through <code>PosStore.pay()</code>, which blocks with an <code>AlertDialog</code> when:</p>
+  <h2 id="payment">9. Payment gates <span class="file">pos_store.js</span></h2>
+  <p>Both Pay buttons funnel through <code>PosStore.pay()</code>, which blocks when:</p>
   <ul>
-    <li>any laundry line still has <strong>unselected options</strong> (lists the offending product names); or</li>
-    <li>a <strong>Wash-Dry-Fold minimum weight</strong> is unmet — at least <strong>6KG</strong> for a single WDF line, or <strong>4KG on each line</strong> when there is more than one WDF line.</li>
+    <li>any laundry line still has <strong>unselected options</strong> (lists the offending product names — <code>AlertDialog</code>); or</li>
+    <li>a <strong>Wash-Dry-Fold line isn't at its billed qty</strong> — a <code>ConfirmationDialog</code> with a <strong>"Click here"</strong> button re-bills every WDF line to <code>max(actual rounded up to 0.5kg, min)</code> (min = 6KG single / 4KG when 2+). It bumps short lines UP and brings a previously force-bumped line back DOWN when the count/min changes, and does <strong>not</strong> auto-proceed — the cashier reviews and presses Pay again.</li>
   </ul>
+  <p><strong>Refunds:</strong> clicking <strong>Refund</strong> in the Orders screen refunds the <strong>whole order</strong> at
+     full quantity (no partial — <code>_setToRefundDetail</code> / <code>onDoRefund</code> overrides; note reads "Only full refund
+     is allowed. Click Refund to proceed."). A refund order disables the <strong>New Order</strong> and <strong>Settle Order</strong>
+     hub buttons (<code>navbar</code> <code>laundryIsRefund</code>).</p>
 
-  <h2 id="receipt">9. Receipt customization <span class="file">order_receipt_patch.js, receipt_header_patch.js, order_line_patch.js, laundry_receipt.scss</span></h2>
+  <h2 id="receipt">10. Receipt customization <span class="file">order_receipt_patch.js, receipt_header_patch.js, order_line_patch.js, laundry_receipt.scss</span></h2>
   <h3>Multi-copy thermal receipt</h3>
   <p><code>computeLaundryCopies(order)</code> builds, for a laundry order:</p>
   <ul>
@@ -217,7 +286,7 @@
     <li>Line formatting (<code>order_line_patch.js</code>): per-line attributes as name/value; "Turnaround (Press)" / "Turnaround Time" normalised to "Turnaround" and dropped from the printed line (shown once in the header); the duplicated "(Variant)" suffix stripped from the product name; WDF/Press get write-in count lines (Sorting / Folding / Press counts).</li>
   </ul>
 
-  <h2 id="cash">10. Cash control (open / close) <span class="file">opening_control_popup_patch.js, closing_popup_patch.js</span></h2>
+  <h2 id="cash">11. Cash control (open / close) <span class="file">opening_control_popup_patch.js, closing_popup_patch.js</span></h2>
   <p>Enforces itemized cash accountability on both ends of a session:</p>
   <table>
     <tr><th></th><th>Opening</th><th>Closing</th></tr>
@@ -228,7 +297,7 @@
   </table>
   <p>When a config has no cash method, core behavior is preserved (nothing to count).</p>
 
-  <h2 id="demangle">11. Maintenance: Demangle &amp; Split Customer Names <span class="file">data/demangle_server_action.xml</span></h2>
+  <h2 id="demangle">12. Maintenance: Demangle &amp; Split Customer Names <span class="file">data/demangle_server_action.xml</span></h2>
   <p>A one-time server action (Contacts list → Action menu), not part of the POS runtime — it just rides in this module as
      the deploy vehicle. For each selected contact it keeps the part before the first <code>" | "</code> (undoing an
      <code>"| ADDRESS | PHONE | TAGS"</code> mangling), then splits the recovered name by <code>"/"</code> and
@@ -236,14 +305,19 @@
   <div class="warn"><strong>Guard:</strong> it refuses to run while an active "Update Customer Name" automation exists
     (Settings → Technical → Automation Rules) — otherwise names re-mangle on save. Delete/archive that automation first.</div>
 
-  <h2 id="decisions">12. Key design decisions (why)</h2>
+  <h2 id="decisions">13. Key design decisions (why)</h2>
   <ul>
     <li><strong><code>addNewOrder</code> stays synchronous</strong> — async breaks order-UUID routing.</li>
+    <li><strong>New Order opens the modal for the current order, never navigates</strong> — creating/navigating to a new order fails under the POS service worker; the native ＋ starts the next order.</li>
+    <li><strong>Mutual exclusivity via <code>_laundryPurpose</code></strong> — set on click, so Settle/New Order disable each other immediately; restored after reload from stored status / settle lines.</li>
+    <li><strong>Navbar buttons lifted with <code>z-index</code></strong> — the core left-header's invisible positioned layer otherwise paints over and eats clicks on the leftmost button.</li>
+    <li><strong>Order List decoupled from the order's customer</strong> — <code>getDefaultSearchDetails</code> returns a blank search so the two selections stay independent.</li>
     <li><strong>No <code>_load_pos_data_fields</code> on <code>pos.order</code></strong> — default <code>[]</code> loads all fields; overriding would drop lines/partner/amounts.</li>
     <li><strong>Computed (not <code>related</code>) order fields</strong> — keep partner data one-way so POS sync can't overwrite the customer record.</li>
     <li><strong>Name matching, not product IDs/tags</strong> — survives DB restores and re-seeding; no per-product configuration needed.</li>
     <li><strong>localStorage for laundry meta</strong> — the JS-only fields aren't server-synced, so they must be rehydrated across reloads.</li>
     <li><strong>Turnaround driven by schedule</strong> — the TAT is computed and locked, not a free cashier choice, so receipts and lines stay consistent.</li>
+    <li><strong>Multi-word + server partner search</strong> — POS pre-loads only a subset of customers, so search must also query the server (Enter) to find un-loaded contacts.</li>
   </ul>
 
 </main>

@@ -6,11 +6,18 @@
             <span class="text-wrap d-inline"><t t-esc="vals.name"/></span>
         </xpath>
 
-        <!-- Below the rate: WDF "Sorting count" first, then the attributes (empty
-             checkbox + bold label + value), then WDF "Folding count" last. -->
+        <!-- Hide the native customer-note badge; we render our own Note below the attributes. -->
+        <xpath expr="//li[hasclass('customer-note')]" position="replace"/>
+
+        <!-- Receipt write-in counts (no checkbox): "Sorted pcs" at the top, then the
+             attributes (checkbox + bold label + value), then "Folded pcs" (WDF) /
+             "Pressed pcs" (Press) at the bottom. -->
         <xpath expr="//ul[hasclass('info-list')]" position="after">
+            <div t-if="vals.laundryActualWeight" class="laundry-attrs ms-2">
+                <div class="attribute-line"><b>Actual Weight:</b> <t t-esc="vals.laundryActualWeight"/></div>
+            </div>
             <div t-if="vals.isReceipt and (vals.laundryWdf or vals.laundryPress)" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Sorting count:</b> _____</div>
+                <div class="attribute-line"><b>Sorted pcs:</b> _____</div>
             </div>
             <div t-if="vals.laundryAttributes and vals.laundryAttributes.length"
                  class="laundry-attrs ms-2">
@@ -20,10 +27,14 @@
                 </div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryWdf" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Folding count:</b> _____</div>
+                <div class="attribute-line"><b>Folded pcs:</b> _____</div>
             </div>
             <div t-if="vals.isReceipt and vals.laundryPress" class="laundry-attrs ms-2">
-                <div class="attribute-line">&#9744; <b>Press count:</b> _____</div>
+                <div class="attribute-line"><b>Pressed pcs:</b> _____</div>
+            </div>
+            <!-- Per-service customer Note (entered in the configurator): shown in cart + receipt. -->
+            <div t-if="vals.laundryIsService and line.customer_note" class="laundry-attrs ms-2">
+                <div class="attribute-line"><b>Note:</b> <span class="fst-italic text-uppercase" t-esc="line.customer_note"/></div>
             </div>
         </xpath>
     </t>

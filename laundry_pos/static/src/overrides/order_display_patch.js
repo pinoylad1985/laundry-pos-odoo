@@ -5,7 +5,7 @@ import { OrderDisplay } from "@point_of_sale/app/components/order_display/order_
 import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
 
 // Fixed display order for the main services; everything else falls after them.
-const RANK = { wdf: 1, press: 2, dwc: 3, shoe: 4 };
+const RANK = { wdf: 1, press: 2, dwc: 3, shoe: 4, cap: 5 };
 
 patch(OrderDisplay.prototype, {
     // Show the main services in a fixed order (Wash-Dry-Fold, Press, Dry/Wet

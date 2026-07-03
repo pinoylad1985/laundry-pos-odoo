@@ -12,23 +12,39 @@ patch(Orderline.prototype, {
         const vals = super.lineScreenValues;
         const line = this.props.line;
 
+        // Attributes show in cart + receipt; Turnaround is dropped from the RECEIPT
+        // (already in the order-details header) but kept in the cart.
         vals.laundryAttributes = (line.attribute_value_ids || [])
             .map((av) => ({
                 name: this._laundryAttrName(av.attribute_id?.name || ""),
                 value: av.name || "",
             }))
-            // Turnaround is already shown once in the order details header, so
-            // drop the per-product "Turnaround" line from the printed receipt.
             .filter((a) => !(vals.isReceipt && a.name === "Turnaround"));
 
         const code = laundryCodeForProduct(line.product_id?.product_tmpl_id);
         if (code && typeof vals.name === "string") {
             vals.name = vals.name.replace(/\s*\([^()]*\)\s*$/, "").trim();
         }
+        // Wash-Dry-Fold: the ACTUAL entered weight gets its own line ABOVE everything
+        // (above "Sorted pcs" on the receipt). The qty/billing uses the rounded value.
+        if (code === "wdf" && line.laundry_actual_weight) {
+            const disp = String(Math.round(line.laundry_actual_weight * 100) / 100);
+            vals.laundryActualWeight = `${disp} KG`;
+        }
+        // Wash-Dry-Fold: show the per-KG qty with up to ONE decimal (2.5, not 2.50).
+        if (code === "wdf") {
+            const rounded = Math.round((line.qty || 0) * 10) / 10;
+            const [unit, dec] = String(rounded).split(".");
+            const point = line.getQuantityStr().decimalPoint || ".";
+            vals.unitPart = unit;
+            vals.decimalPart = dec ? `${point}${dec}` : "";
+        }
         // WDF/Press get write-in count lines on the receipt (Sorting at the top;
         // Folding for WDF / Press count for Press at the bottom).
         vals.laundryWdf = code === "wdf";
         vals.laundryPress = code === "press";
+        // Any of the 5 major services gets a per-line customer Note box (cart) / line (receipt).
+        vals.laundryIsService = !!code;
         return vals;
     },
 

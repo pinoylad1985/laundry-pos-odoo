@@ -26,27 +26,34 @@ Odoo: **Apps → Update Apps List → Upgrade Laundry POS**.
 laundry_pos/
 ├── __manifest__.py                  # depends: point_of_sale; assets glob static/src/**/*.{scss,js,xml}
 ├── models/
-│   ├── pos_order.py                 # laundry_* fields on pos.order (+ computed due/phone/address)
+│   ├── pos_order.py                 # laundry_* fields on pos.order (+ computed due/phone/address + laundry_secondary_type); PosOrderLine.laundry_actual_weight
 │   ├── res_partner.py               # pos_tag_names computed char (for receipt tags)
 │   └── laundry_service_type.py      # laundry.service.type catalog model (5 seeded types)
 ├── security/ir.model.access.csv
+├── views/pos_order_views.xml        # backend POS Orders list → adds Service Type + Secondary Type columns
 ├── data/
 │   ├── laundry_service_type_data.xml   # seeds the 5 service types
 │   └── demangle_server_action.xml      # one-time Contacts maintenance action (not POS runtime)
 └── static/src/
     ├── utils/
     │   ├── laundry_instructions.js  # LAUNDRY_MENU: 4 service products matched BY NAME
-    │   ├── laundry_products.js      # name matching, TAT helpers, configured-line vals
-    │   └── laundry_storage.js       # localStorage per-order persistence (keyed by uuid)
+    │   ├── laundry_products.js      # name matching, TAT helpers, configured-line vals, wdfBilledQty
+    │   ├── laundry_storage.js       # localStorage per-order persistence (keyed by uuid)
+    │   └── partner_search.js        # multi-word partner match + server-search domain builder
     ├── new_order_modal/             # 4-step modal (customer / services / type / schedule)
+    ├── settle_modal/                # Settle modal: customer search → settle orders/invoices/due/deposit
     └── overrides/
-        ├── pos_store.js             # addNewOrder flag, selectPartner block, no-merge, printReceipt, pay gates
-        ├── product_screen_patch.*   # opens modal, banner, rehydrate, addProduct block
+        ├── pos_store.js             # addNewOrder flag, selectPartner block, no-merge, printReceipt, getDefaultSearchDetails, pay gates (incl. WDF min-weight billing), addLineToCurrentOrder (WDF qty guard + grid-add weight)
+        ├── navbar_patch.*           # New Order / Settle Order / Order List hub buttons (active-highlight + mutual-exclusion + z-index lift; refund locks New Order + Settle)
+        ├── product_screen_patch.*   # New Order modal, setup banner, grid lock, rehydrate, _laundryPurpose (sell/settle)
+        ├── ticket_screen_patch.*    # Order List customer-search bar (multi-word + server search); full-order refund (no partial) + reworded note
+        ├── partner_search_patch.js  # multi-word partner search in the core Customer picker (⚠ upgrade note below)
+        ├── partner_block_patch.*    # redirect core settle/deposit menu items into the Settle modal
         ├── order_display_patch.js   # fixed line order (WDF→Press→DWC→Shoe)
-        ├── order_summary_patch.js   # tap a laundry line → fresh configurator
-        ├── order_line_patch.*       # per-line receipt attributes, WDF/Press count lines
-        ├── pos_order_line_patch.js  # qty rules (DWC/Shoe=1, WDF per-kg, Press>1)
-        ├── product_configurator_popup_patch.* # pre-fill, TAT lock, crash guard
+        ├── order_summary_patch.js   # tap a laundry line → fresh configurator; WDF billing sweep
+        ├── order_line_patch.*       # per-line receipt attributes (incl. WDF Actual Weight), WDF/Press count lines, WDF qty shown to 1 decimal
+        ├── pos_order_line_patch.js  # qty rules (DWC/Shoe=1; WDF = weight, LOCKED from manual numpad edits; Press>1) + allowWdfQty guard
+        ├── product_configurator_popup_patch.* # Actual Weight input (required) + weight stash, pre-fill, TAT lock, crash guard
         ├── order_receipt_patch.*    # multi-copy thermal receipt
         ├── receipt_header_patch.* + receipt_header.xml + laundry_receipt.scss
         └── opening_control_popup_patch.* / closing_popup_patch.* / cash_control.scss  # cash control
@@ -69,6 +76,24 @@ laundry_pos/
 - **Configurator crash guard** — `initAttributes()` pre-seeds `state.attributes` for every value's `attribute_id` so
   malformed products (e.g. after a DB restore) don't crash the popup.
 
+## Navbar hub buttons (New Order / Settle Order / Order List)
+The navbar (`navbar_patch.*`) carries three buttons (desktop = text, mobile = icons). A blank order has no chosen
+purpose; clicking decides it. **There is NO setup banner for a blank/idle order** — only the navbar buttons + a locked
+product grid ("Tap New Order or Settle Order above to begin").
+- **New Order** → opens the New Order setup modal **for the current order** (does NOT create/navigate to a new order —
+  that navigation fails under the POS service worker; use the native ＋ to start the next order). Dispatch: navbar fires a
+  `laundry-action` DOM event; `ProductScreen._runLaundryAction` handles it.
+- **Settle Order** → opens the Settle modal (`settle_modal/`), a customer search where each row surfaces that customer's
+  real `pos_settle_due` action (Settle orders / invoices / due / Deposit). The Control Button customer pre-fills it.
+- **Order List** → navigates to `TicketScreen`; `ticket_screen_patch.*` adds a customer-search bar above the core SearchBar.
+- **Mutual exclusivity via `order._laundryPurpose`** (`'sell'|'settle'`, set on click in `_runLaundryAction`): once set,
+  the navbar getters `laundryActiveSell`/`laundryActiveSettle` disable the *other* button and highlight the active one
+  (solid primary). Restored after reload from stored status / settle lines. To switch an order's type, start a fresh order.
+- **Buttons need `position-relative; z-index`** — the core `pos-leftheader` has an invisible `position-relative w-100`
+  layer that (per CSS painting rules) sits over the leftmost button and eats its clicks; the lift fixes it. Don't remove it.
+- **Order List is independent of the Customer Control Button** — `PosStore.getDefaultSearchDetails` is overridden to
+  always return a blank search; core otherwise seeds the order search with the current order's partner name.
+
 ## Service Types (seeded data + frontend list)
 | Code | Label |
 |------|-------|
@@ -81,15 +106,63 @@ laundry_pos/
 ## Service Products (matched by name)
 | Code | Name contains | Quantity behavior |
 |------|---------------|-------------------|
-| `wdf` | Wash-Dry-Fold | per-KG, editable; min weight at payment (6kg single / 4kg each multi) |
+| `wdf` | Wash-Dry-Fold | weight-based — **Actual Weight** entered in the configurator (required); billed qty = `max(actual rounded up to 0.5kg, min)`, min = 6kg single / 4kg each multi. Qty **locked from manual numpad edits**. See below. |
 | `dwc` | Dry/Wet Clean | locked to 1; long turnaround |
 | `shoe` | Shoe Clean | locked to 1; long turnaround |
 | `press` | Press | may exceed 1 |
+
+## Wash-Dry-Fold weight & billing
+WDF is weight-based. The **Actual Weight (KG)** is entered in the product configurator (a custom input we
+added; **required** — Add is blocked without it) and stored on **`pos.order.line.laundry_actual_weight`** (a
+real, loaded field) so it survives reloads/reprints. It's shown as-is, like a variant attribute
+("Actual Weight (KG): 3.2"), in the cart and on the receipt; the line **qty** displays to 1 decimal.
+- **Billed qty = `wdfBilledQty(actual, count)` = `max(actual rounded UP to 0.5, minKg)`**, minKg = **6** (single
+  WDF line) / **4** (2+ lines). Helper in `utils/laundry_products.js`, used in both places below.
+- **Applied at configure (Add)** — `OrderSummary._laundryApplyWdfBilling` sweeps all configured WDF lines for
+  the current count — **and re-checked at payment** — `PosStore.pay` shows a **"Click here"** dialog that re-bills
+  every WDF line (bumps short lines UP, and a previously force-bumped line back DOWN when the count/min changes).
+  "Click here" does NOT auto-proceed; the cashier reviews and presses Pay again.
+- **Manual qty edits are blocked for WDF** (numpad/typing) via a guard flag in `pos_order_line_patch.js`; only the
+  configurator and the min-weight bump set qty (wrapped in `allowWdfQty(...)`; `PosStore.addLineToCurrentOrder`
+  wraps line creation in it too). Setting 0 / removing the line still works.
+- **Grid-add path:** adding a WDF from the product grid runs Odoo's *core* auto-configurator, which drops our
+  custom payload — so the configurator stashes the weight on confirm (`consumeWdfWeight`) and
+  `PosStore.addLineToCurrentOrder` applies it once the line exists. (The cart-tap path uses our own
+  `_laundryConfigureLine`.)
+
+## Secondary Type (reporting classification)
+`pos.order.laundry_secondary_type` (computed, **stored**) classifies each order **Order / Payment / Adjustment /
+Refund** — a column on the backend POS Orders list (`views/pos_order_views.xml`).
+- **Refund** wins: `is_refund` OR refunded. Depends on **`lines.refund_orderline_ids`** (NOT the non-stored
+  `refund_orders_count`) so a refunded order actually recomputes to Refund.
+- **Payment**: settles an order/invoice/deposit, or legacy `x_studio_category == 'Payment'`.
+- **Adjustment**: legacy `x_studio_category == 'Adjustment'`.
+- **Order**: has a service type (the 5 codes, or a legacy `x_studio_category` service label).
+- **else blank** (truly-uncategorized legacy orders stay blank). Legacy data is read from the Studio field
+  `x_studio_category`, guarded with `in self._fields` and intentionally **not** in `@api.depends`.
+- The old list-view `laundry_manual_category` dropdown was **removed** (superseded by this).
+
+## Refund behavior
+- **Refund = whole order.** Clicking Refund (TicketScreen) refunds **every line at full remaining qty** — no
+  per-line selection or qty entry. `_setToRefundDetail` snaps to full qty (⚠ full override — re-check on upgrade);
+  `onDoRefund` auto-selects all lines. Note reads "Only full refund is allowed. Click Refund to proceed."
+- **A refund order locks the hub:** navbar getter `laundryIsRefund` (`is_refund` / has refund lines) disables
+  BOTH New Order and Settle Order.
 
 ## Important Files NOT to Break
 - `models/pos_order.py` — do NOT add `_load_pos_data_fields`; keep order fields computed (not related).
 - `static/src/overrides/pos_store.js` — `addNewOrder` must stay synchronous.
 - `__manifest__.py` — asset glob `laundry_pos/static/src/**/*` picks up all SCSS/JS/XML.
+
+## ⚠️ Re-check on every Odoo upgrade
+- `static/src/overrides/partner_search_patch.js` — `getNewPartners` is a **FULL COPY** of core
+  `PartnerList.getNewPartners` (not a `super` extension), because the multi-word search domain has to be
+  injected mid-method. It will **not** inherit future core changes. On each Odoo upgrade, diff it against the
+  new core method and re-sync if core changed.
+- `static/src/overrides/ticket_screen_patch.js` — `_setToRefundDetail` is a **FULL replacement** of core's
+  method (not a `super` call), to force full-quantity refunds. Diff against core on upgrade.
+
+  (Everything else in the module extends via `super`, so it auto-inherits core changes — these two are the exceptions.)
 
 ## Odoo 19 POS Architecture Notes
 - Popup pattern: `makeAwaitable` from `@point_of_sale/app/utils/make_awaitable_dialog`
@@ -99,3 +172,38 @@ laundry_pos/
 - Cash control: opening/closing popups under `@point_of_sale/app/components/popups/`
 - Asset bundle: `point_of_sale._assets_pos` · Models loaded via `_load_pos_data_fields` + `_load_pos_data_read`
 - OWL: `patch(Class.prototype, {...})`, `useEffect(effect, () => [deps])`, `super.method(...arguments)`
+
+## POS UI Vocabulary (shared glossary)
+Use these official Odoo component names so we don't get confused.
+
+**Screens** (full "pages", registered in `pos_pages`):
+| Name | Meaning |
+|------|---------|
+| `ProductScreen` | Main order-taking screen (product grid + cart). Cashiers live here. |
+| `PaymentScreen` | Taking payment for the current order. |
+| `ReceiptScreen` | Receipt shown after payment. |
+| `TicketScreen` | The **Orders** screen — search/browse past & open orders. |
+| `LoginScreen` | Lock / cashier-login screen (lock→unlock passes through here). |
+| `SaverScreen` | Idle screensaver. |
+
+**Navbar** = the whole top strip (`point_of_sale.Navbar`, file `navbar_patch.xml`). Holds: `Register`
+button, `orders-button` (Orders), the ＋ new-order, `OrderTabs` (the `73001…` tabs), product-search
+`Input`, barcode button, `CashierName` (avatar), the lock, and the ☰ hamburger (`Dropdown` — Cash
+In/Out, Close Register…). *Our additions:* the **hub buttons** (New Order / Settle Order / Order List — desktop text,
+mobile icons; the chosen one is highlighted solid-primary and the opposite one is disabled — mutual exclusivity).
+
+**Product screen parts:** `products`/product grid (cards) · **category buttons** (the colored pills =
+product categories) · `OrderSummary` = the **cart**, made of `Orderline`s · **control buttons**
+(bottom-left: Customer, Note…) · `Numpad` + `Actionpad` (number pad + **Pay**) · *our* **setup banner** above the cart
+(green = submitted summary with **Change**; amber = skipped New Order with **Complete**; *no* banner for a blank/idle
+order) and the **grid-lock overlay** on the product grid until setup is done — both are NOT the navbar.
+
+**Orders screen (TicketScreen) parts:** `SearchBar` = the "Search Orders" bar · *our* **customer search
+bar** above it · the **order list** (rows) · the **detail/refund pane** on the right.
+
+**Popups / Modals** (float over a screen): `PartnerList` = the "Choose customer" picker · **Product
+Configurator** · **Opening/Closing control** (cash-count popups) · *our* **New Order modal** and **Settle modal**.
+(The old **Action hub** was removed — its actions are now the navbar hub buttons.)
+
+Rules of thumb: **"screen"** = a full page · **"navbar"** = top strip (vs the lower **"setup banner"**) ·
+**"popup"/"modal"** = floats on top.

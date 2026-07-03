@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
+
+        <!-- Settle + Orders, beside the product search -->
+        <xpath expr="//Input" position="before">
+            <!-- Desktop: text buttons. Active mode = solid primary; others = light.
+                 position-relative + z-index lifts these above the core left-header's
+                 invisible `position-relative w-100` layer, which otherwise paints over
+                 (and eats clicks on) the leftmost button. -->
+            <div t-if="!ui.isSmall" class="laundry-nav-buttons d-flex flex-nowrap align-items-center gap-1 me-2"
+                 style="position:relative; z-index:3;">
+                <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSell ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSettle or laundryIsRefund"
+                        t-on-click="() => this.laundryAction('new_order')">New Order</button>
+                <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveSettle ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSell or laundryIsRefund"
+                        t-on-click="() => this.laundryAction('settle')">Settle Order</button>
+                <button class="btn btn-lg lh-lg text-nowrap" t-att-class="laundryActiveList ? 'btn-primary' : 'btn-light'"
+                        t-on-click="() => this.pos.navigate('TicketScreen')">Order List</button>
+            </div>
+            <!-- Mobile: compact icons. Active mode = solid primary; others = light. -->
+            <div t-if="ui.isSmall" class="laundry-nav-buttons d-flex align-items-center me-1">
+                <button class="btn btn-lg lh-lg px-2" title="New Order" t-att-class="laundryActiveSell ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSettle or laundryIsRefund"
+                        t-on-click="() => this.laundryAction('new_order')">
+                    <i class="fa fa-fw fa-cart-plus"/>
+                </button>
+                <button class="btn btn-lg lh-lg px-2" title="Settle Order" t-att-class="laundryActiveSettle ? 'btn-primary' : 'btn-light'"
+                        t-att-disabled="laundryActiveSell or laundryIsRefund"
+                        t-on-click="() => this.laundryAction('settle')">
+                    <i class="fa fa-fw fa-credit-card"/>
+                </button>
+                <button class="btn btn-lg lh-lg px-2" title="Order List" t-att-class="laundryActiveList ? 'btn-primary' : 'btn-light'"
+                        t-on-click="() => this.pos.navigate('TicketScreen')">
+                    <i class="fa fa-fw fa-book"/>
+                </button>
+            </div>
+        </xpath>
+
+        <!-- Hide the base left-header Orders button (replaced by the buttons above) -->
+        <xpath expr="//button[hasclass('orders-button')]" position="attributes">
+            <attribute name="t-if">false</attribute>
+        </xpath>
+
+        <!-- Hide the top-bar barcode scanner button on mobile; it stays in the ☰ menu -->
+        <xpath expr="//button[@t-on-click='onClickScan']" position="attributes">
+            <attribute name="t-if">isBarcodeScannerSupported() and ['ProductScreen', 'TicketScreen'].includes(this.pos.router.state.current) and !pos.config.module_pos_restaurant and !ui.isSmall</attribute>
+        </xpath>
+
+    </t>
+</templates>

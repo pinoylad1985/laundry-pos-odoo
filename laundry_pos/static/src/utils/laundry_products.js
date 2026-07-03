@@ -110,3 +110,11 @@ export function lineNeedsConfig(line) {
     const hasAttrs = (tmpl?.attribute_line_ids?.length || 0) > 0;
     return hasAttrs && !(line?.attribute_value_ids?.length);
 }
+
+// WDF minimum-weight billing: qty = the actual weight rounded UP to the nearest
+// 0.5 kg, but never below the per-line minimum — 6 kg for a single WDF line, 4 kg
+// when there are two or more. Applied at configure (Add) and re-checked at payment.
+export function wdfBilledQty(actualWeight, wdfCount) {
+    const minKg = wdfCount === 1 ? 6 : 4;
+    return Math.max(Math.ceil((actualWeight || 0) * 2) / 2, minKg);
+}
