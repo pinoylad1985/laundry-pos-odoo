@@ -107,10 +107,15 @@ patch(ProductConfiguratorPopup.prototype, {
         if (this.isLaundryService && !this.laundryAllAttributesSelected) {
             return;
         }
-        if (this.isLaundryWdf && !(this.laundryEnteredKg > 0)) {
-            this.laundryKgState.invalid = true;
-            this.laundryKgRef?.el?.focus?.();
-            return;
+        if (this.isLaundryWdf) {
+            // Require a real weighed value: > 0 with EXACTLY 2 decimal places (e.g. 3.25),
+            // so a proper scale reading is entered (not a rounded/placeholder number).
+            const raw = String(this.laundryKgRef?.el?.value ?? "").trim();
+            if (!(this.laundryEnteredKg > 0) || !/^\d+\.\d{2}$/.test(raw)) {
+                this.laundryKgState.invalid = true;
+                this.laundryKgRef?.el?.focus?.();
+                return;
+            }
         }
         if (this.isLaundryWdf) {
             // Stash for the product-grid add-flow (see PosStore.addLineToCurrentOrder).
