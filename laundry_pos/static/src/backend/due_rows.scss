@@ -1,0 +1,16 @@
+// Pastel row fill for the POS Orders "Due" urgency. Paired with the decoration-danger/warning/
+// primary tags in views/pos_order_views.xml. Scoped to the `o_laundry_pos_orders` class on that
+// <list> so NO other Odoo list is affected (Odoo's built-in decorations only colour text — this
+// turns our three tags into light background fills instead).
+.o_laundry_pos_orders {
+    tbody tr.o_data_row {
+        &.text-danger  { background-color: #fbe0e0 !important; }  // pastel red    — past due (🚨PD)
+        &.text-warning { background-color: #ffe9cf !important; }  // pastel orange — < 3 hrs (⏰)
+        &.text-primary { background-color: #fdf6c9 !important; }  // pastel yellow — 3-6 hrs (⏳)
+
+        // Keep the row text dark/readable on the pastel fill (undo the decoration's coloured text).
+        &.text-danger,
+        &.text-warning,
+        &.text-primary { color: inherit !important; }
+    }
+}
