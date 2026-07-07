@@ -104,6 +104,13 @@ class PosOrder(models.Model):
         string='Status',
         default='Not Started',
     )
+    # Due-urgency icon for the pending-orders list (module replacement for the Studio
+    # x_studio_due_icon). Non-stored + time-based: recomputed on each read so it always
+    # reflects "now" — 🚨PD (past due) / ⏰3hrs / ⏳3-6hrs for open, due-soon orders.
+    laundry_due_icon = fields.Char(
+        string='Due Icon',
+        compute='_compute_laundry_due_icon',
+    )
     # Rider who signed off on a Pickup & Delivery / Locker order at payment (POS PIN gate).
     laundry_rider = fields.Char(string='Rider')
 
@@ -122,6 +129,25 @@ class PosOrder(models.Model):
                 or order.laundry_claim_datetime
                 or legacy
             )
+
+    @api.depends('laundry_status', 'laundry_due_datetime')
+    def _compute_laundry_due_icon(self):
+        # Same buckets as the legacy Studio x_studio_due_icon, but off the module
+        # fields. Non-stored, so it recomputes on every read (list load) — the value
+        # tracks the current time even though nothing can @api.depends on "now".
+        HOUR = 3600
+        now = fields.Datetime.now()  # naive UTC — matches Odoo's datetime storage
+        for order in self:
+            icon = ""
+            if order.laundry_status in ('Not Started', 'In Process') and order.laundry_due_datetime:
+                delta = (order.laundry_due_datetime - now).total_seconds()
+                if delta < 0:
+                    icon = "🚨PD"
+                elif delta <= 3 * HOUR:
+                    icon = "⏰3hrs"
+                elif delta <= 6 * HOUR:
+                    icon = "⏳3-6hrs"
+            order.laundry_due_icon = icon
 
     @api.depends('is_refund', 'laundry_service_type', 'lines.refund_orderline_ids',
                  'lines.settled_order_id', 'lines.settled_invoice_id', 'lines.product_id')
