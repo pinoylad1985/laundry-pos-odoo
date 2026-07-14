@@ -1,8 +1,8 @@
-// Pastel row fill for the POS Orders due-urgency. The o_laundry_due_* classes are added by
-// the ListRenderer.getRowClass patch (backend/due_rows.js) to laundry order rows only, so
-// no view-scoping is needed. Odoo's native decorations only colour text — this fills the row.
+// Pastel row fill for the POS Orders due-urgency. The o_laundry_due_* classes are added to
+// the <tr> by backend/due_rows.js. We colour the CELLS (> td) as well as the row — Odoo
+// paints its own cell backgrounds, so a <tr> background alone stays hidden behind them.
 .o_list_renderer tr.o_data_row {
-    &.o_laundry_due_pd   { background-color: #fbe0e0 !important; }  // pastel red    — past due (🚨PD)
-    &.o_laundry_due_soon { background-color: #ffe9cf !important; }  // pastel orange — < 3 hrs (⏰)
-    &.o_laundry_due_near { background-color: #fdf6c9 !important; }  // pastel yellow — 3-6 hrs (⏳)
+    &.o_laundry_due_pd,   &.o_laundry_due_pd   > td { background-color: #fbe0e0 !important; }  // pastel red    — past due (🚨PD)
+    &.o_laundry_due_soon, &.o_laundry_due_soon > td { background-color: #ffe9cf !important; }  // pastel orange — < 3 hrs (⏰)
+    &.o_laundry_due_near, &.o_laundry_due_near > td { background-color: #fdf6c9 !important; }  // pastel yellow — 3-6 hrs (⏳)
 }
