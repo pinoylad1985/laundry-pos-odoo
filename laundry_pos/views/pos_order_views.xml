@@ -16,21 +16,14 @@
                 <field name="laundry_secondary_type" optional="show"/>
                 <field name="laundry_due_datetime" optional="show"/>
                 <field name="laundry_due_icon" optional="show"/>
-                <field name="laundry_due_level" column_invisible="True"/>
                 <field name="laundry_status" optional="show"/>
                 <field name="laundry_staff_id" optional="show" widget="laundry_staff_pin"/>
                 <field name="laundry_folding_time" optional="show" widget="laundry_folding_pin"/>
             </xpath>
-            <!-- Pastel row fill by due-urgency: red (past due) / orange (<3h) / yellow (3-6h).
-                 decoration-* tags the row (danger/warning/primary are unused by the base list,
-                 which only uses info/muted); static/src/backend/due_rows.scss turns those tags
-                 into pastel backgrounds, scoped to the o_laundry_pos_orders class below. -->
-            <xpath expr="//list" position="attributes">
-                <attribute name="class" add="o_laundry_pos_orders" separator=" "/>
-                <attribute name="decoration-danger">laundry_due_level == 'pd'</attribute>
-                <attribute name="decoration-warning">laundry_due_level == 'soon'</attribute>
-                <attribute name="decoration-primary">laundry_due_level == 'near'</attribute>
-            </xpath>
+            <!-- Pastel row fill by due-urgency is applied in JS (backend/due_rows.js patches
+                 ListRenderer.getRowClass off the visible laundry_due_icon) + styled in
+                 backend/due_rows.scss. Odoo's native decoration-* only colours text and was
+                 unreliable on this Studio-customised editable list, so we do it directly. -->
         </field>
     </record>
 
