@@ -111,6 +111,12 @@ class PosOrder(models.Model):
         string='Due Icon',
         compute='_compute_laundry_due_icon',
     )
+    # Plain urgency code ('pd'/'soon'/'near'/'') paired with the icon above — drives the
+    # pastel row colour in the Orders list (decoration-* in the arch + backend SCSS). Non-stored.
+    laundry_due_level = fields.Char(
+        string='Due Level',
+        compute='_compute_laundry_due_icon',
+    )
     # Rider who signed off on a Pickup & Delivery / Locker order at payment (POS PIN gate).
     laundry_rider = fields.Char(string='Rider')
 
@@ -138,16 +144,17 @@ class PosOrder(models.Model):
         HOUR = 3600
         now = fields.Datetime.now()  # naive UTC — matches Odoo's datetime storage
         for order in self:
-            icon = ""
+            icon, level = "", ""
             if order.laundry_status in ('Not Started', 'In Process') and order.laundry_due_datetime:
                 delta = (order.laundry_due_datetime - now).total_seconds()
                 if delta < 0:
-                    icon = "🚨PD"
+                    icon, level = "🚨PD", "pd"
                 elif delta <= 3 * HOUR:
-                    icon = "⏰3hrs"
+                    icon, level = "⏰3hrs", "soon"
                 elif delta <= 6 * HOUR:
-                    icon = "⏳3-6hrs"
+                    icon, level = "⏳3-6hrs", "near"
             order.laundry_due_icon = icon
+            order.laundry_due_level = level
 
     @api.depends('is_refund', 'laundry_service_type', 'lines.refund_orderline_ids',
                  'lines.settled_order_id', 'lines.settled_invoice_id', 'lines.product_id')

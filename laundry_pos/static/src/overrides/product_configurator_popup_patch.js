@@ -3,7 +3,7 @@
 import { patch } from "@web/core/utils/patch";
 import { useState, useRef } from "@odoo/owl";
 import { ProductConfiguratorPopup } from "@point_of_sale/app/components/popups/product_configurator_popup/product_configurator_popup";
-import { laundryCodeForProduct } from "@laundry_pos/utils/laundry_products";
+import { laundryCodeForProduct, wdfRoundedKg } from "@laundry_pos/utils/laundry_products";
 
 function isTurnaround(attrLine) {
     return String(attrLine?.attribute_id?.name || "").startsWith("Turnaround");
@@ -95,10 +95,12 @@ patch(ProductConfiguratorPopup.prototype, {
         this.laundryKgState.invalid = false;
     },
 
-    // The entered weight rounded UP to the nearest 0.5 KG (0 if blank/invalid).
+    // The entered weight rounded to a WHOLE KG (decimal above 0.40 rounds up; 0 if
+    // blank/invalid). The per-line minimum is applied later by wdfBilledQty.
     get laundryRoundedKg() {
         const kg = this.laundryEnteredKg;
-        return kg > 0 ? Math.ceil(kg * 2) / 2 : 0;
+        if (!(kg > 0)) return 0;
+        return wdfRoundedKg(kg);
     },
 
     // Actual Weight is REQUIRED for Wash-Dry-Fold — block Add without a valid value.

@@ -148,10 +148,10 @@ patch(PosStore.prototype, {
             (l) => laundryCodeForProduct(l.product_id?.product_tmpl_id) === "wdf"
         );
         if (wdfLines.length) {
-            // Billed qty for a WDF line = its actual weight rounded UP to 0.5, but never
-            // below the current minimum (6KG single / 4KG when 2+). This bumps short
-            // lines UP and brings a previously force-bumped line back DOWN when the
-            // minimum changes (a WDF line added/removed in the cart flips the minimum).
+            // Billed qty for a WDF line = its actual weight rounded to a whole kg (decimal
+            // above 0.40 rounds up), but never below the current minimum (6KG single / 4KG
+            // when 2+). This bumps short lines UP and brings a previously force-bumped line
+            // back DOWN when the minimum changes (a WDF line added/removed flips the min).
             const billedQty = (l) => wdfBilledQty(l.laundry_actual_weight, wdfLines.length);
             const wrong = wdfLines.filter((l) => Math.abs((l.qty || 0) - billedQty(l)) > 0.001);
             if (wrong.length) {

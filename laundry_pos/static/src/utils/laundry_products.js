@@ -111,10 +111,20 @@ export function lineNeedsConfig(line) {
     return hasAttrs && !(line?.attribute_value_ids?.length);
 }
 
-// WDF minimum-weight billing: qty = the actual weight rounded UP to the nearest
-// 0.5 kg, but never below the per-line minimum — 6 kg for a single WDF line, 4 kg
-// when there are two or more. Applied at configure (Add) and re-checked at payment.
+// Round the WDF actual weight to a WHOLE kg: a decimal part ABOVE 0.40 rounds UP,
+// 0.40 and below rounds DOWN (e.g. 6.40 -> 6, 6.41 -> 7). Same for every customer.
+// Input is a 2-decimal value.
+export function wdfRoundedKg(actualWeight) {
+    const w = actualWeight || 0;
+    const whole = Math.floor(w);
+    const fracCents = Math.round((w - whole) * 100); // 2-decimal input -> integer cents
+    return fracCents > 40 ? whole + 1 : whole;
+}
+
+// WDF billing qty: the whole-kg rounded weight (wdfRoundedKg), but never below the
+// per-line minimum — 6 kg for a single WDF line, 4 kg when there are two or more.
+// Applied at configure (Add) and re-checked at payment.
 export function wdfBilledQty(actualWeight, wdfCount) {
     const minKg = wdfCount === 1 ? 6 : 4;
-    return Math.max(Math.ceil((actualWeight || 0) * 2) / 2, minKg);
+    return Math.max(wdfRoundedKg(actualWeight), minKg);
 }
