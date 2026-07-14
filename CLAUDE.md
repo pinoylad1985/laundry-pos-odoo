@@ -106,7 +106,7 @@ product grid ("Tap New Order or Settle Order above to begin").
 ## Service Products (matched by name)
 | Code | Name contains | Quantity behavior |
 |------|---------------|-------------------|
-| `wdf` | Wash-Dry-Fold | weight-based — **Actual Weight** entered in the configurator (required); billed qty = `max(actual rounded up to 0.5kg, min)`, min = 6kg single / 4kg each multi. Qty **locked from manual numpad edits**. See below. |
+| `wdf` | Wash-Dry-Fold | weight-based — **Actual Weight** entered in the configurator (required, 2 decimals); billed qty = `max(actual rounded to a WHOLE kg, min)` — decimal **above 0.40 rounds up**, 0.40 and below rounds down; min = 6kg single / 4kg each multi. Qty **locked from manual numpad edits**. See below. |
 | `dwc` | Dry/Wet Clean | locked to 1; long turnaround |
 | `shoe` | Shoe Clean | locked to 1; long turnaround |
 | `press` | Press | may exceed 1 |
@@ -116,8 +116,9 @@ WDF is weight-based. The **Actual Weight (KG)** is entered in the product config
 added; **required** — Add is blocked without it) and stored on **`pos.order.line.laundry_actual_weight`** (a
 real, loaded field) so it survives reloads/reprints. It's shown as-is, like a variant attribute
 ("Actual Weight (KG): 3.2"), in the cart and on the receipt; the line **qty** displays to 1 decimal.
-- **Billed qty = `wdfBilledQty(actual, count)` = `max(actual rounded UP to 0.5, minKg)`**, minKg = **6** (single
-  WDF line) / **4** (2+ lines). Helper in `utils/laundry_products.js`, used in both places below.
+- **Billed qty = `wdfBilledQty(actual, count)` = `max(wdfRoundedKg(actual), minKg)`**. `wdfRoundedKg` rounds
+  to a **WHOLE kg** — a decimal part **above 0.40 rounds UP**, 0.40 and below rounds DOWN (6.40→6, 6.41→7).
+  minKg = **6** (single WDF line) / **4** (2+ lines). Helpers in `utils/laundry_products.js`, used below.
 - **Applied at configure (Add)** — `OrderSummary._laundryApplyWdfBilling` sweeps all configured WDF lines for
   the current count — **and re-checked at payment** — `PosStore.pay` shows a **"Click here"** dialog that re-bills
   every WDF line (bumps short lines UP, and a previously force-bumped line back DOWN when the count/min changes).
