@@ -9,3 +9,8 @@ class HrEmployee(models.Model):
         help="Delivery rider — appears in the rider sign-off at payment for "
              "Pickup & Delivery / Locker orders (signs off with their POS PIN).",
     )
+    is_laundry_manager = fields.Boolean(
+        string="Laundry Manager",
+        help="Manager — may approve a refund WITHOUT a rebooked order (with their "
+             "POS PIN + a reason) in the refund control gate.",
+    )

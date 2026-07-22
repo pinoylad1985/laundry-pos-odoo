@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='pin']" position="after">
                 <field name="is_laundry_rider"/>
+                <field name="is_laundry_manager"/>
             </xpath>
         </field>
     </record>
