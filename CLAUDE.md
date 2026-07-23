@@ -154,6 +154,12 @@ Refund** — a column on the backend POS Orders list (`views/pos_order_views.xml
   — OR a **manager** (`hr.employee.is_laundry_manager`) approves with PIN + a typed reason (`check_laundry_manager`).
   Recorded on the refund order: `laundry_refund_rebook_ref` / `laundry_refund_manager` / `laundry_refund_reason`
   (optional columns on the POS Orders list).
+- **Refund payment lock (v1.4.1):** a refund is tendered EXACTLY like the original — same payment method(s) +
+  amount(s), negated (partial refund is off, so it mirrors 1:1). `ticket_screen_patch.onDoRefund` stashes the
+  original's tenders (`pos.order.get_laundry_refund_payments`) as `_laundryLockedPayments` on the refund order;
+  `overrides/payment_screen_patch.js` pre-fills the mirrored lines and blocks manual add/delete/amount edits
+  (scoped to locked refund orders only — normal payments untouched). ⚠ Verify the payment-line API
+  (`addNewPaymentLine` / `set_amount` / `deletePaymentLine` / `updateSelectedPaymentline`) on each Odoo upgrade.
 - **A refund order locks the hub:** navbar getter `laundryIsRefund` (`is_refund` / has refund lines) disables
   BOTH New Order and Settle Order.
 

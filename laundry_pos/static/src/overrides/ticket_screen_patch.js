@@ -18,6 +18,7 @@ patch(TicketScreen.prototype, {
     setup() {
         super.setup(...arguments);
         this.dialog = useService("dialog");
+        this.orm = useService("orm");
         this.laundryState = useState({
             customerQuery: "",
             selectedCustomer: null,
@@ -59,6 +60,14 @@ patch(TicketScreen.prototype, {
         if (!approval) {
             return; // cancelled / not approved — abort the refund
         }
+        // Capture the original's tender(s) so the refund is locked to the exact same
+        // payment method(s) and amount(s), negated (see payment_screen_patch).
+        let lockedPayments = [];
+        try {
+            lockedPayments = await this.orm.call("pos.order", "get_laundry_refund_payments", [order.id]);
+        } catch {
+            lockedPayments = [];
+        }
         for (const line of order.getOrderlines()) {
             const detail = this.getToRefundDetail(line);
             if (detail.destionation_order_id) {
@@ -69,6 +78,10 @@ patch(TicketScreen.prototype, {
         }
         const result = await super.onDoRefund(...arguments);
         this._laundryStampRefund(approval);
+        const refundOrder = this.pos.getOrder();
+        if (refundOrder) {
+            refundOrder._laundryLockedPayments = lockedPayments;
+        }
         return result;
     },
 

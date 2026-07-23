@@ -318,6 +318,20 @@ class PosOrder(models.Model):
             return {"status": "none"}
         return {"status": "ambiguous", "count": len(matches)}
 
+    @api.model
+    def get_laundry_refund_payments(self, original_id):
+        """Return the payment lines of the order being refunded so the refund can be
+        locked to the EXACT same tender(s). Partial refunds are disabled, so the refund
+        mirrors the original 1:1 — each of these is applied negated on the refund.
+        Returns [{'payment_method_id': id, 'amount': float}, ...]."""
+        original = self.browse(int(original_id))
+        if not original.exists():
+            return []
+        return [
+            {"payment_method_id": p.payment_method_id.id, "amount": p.amount}
+            for p in original.payment_ids
+        ]
+
     @api.constrains("laundry_folding_time")
     def _check_laundry_folding_not_future(self):
         now = fields.Datetime.now()
