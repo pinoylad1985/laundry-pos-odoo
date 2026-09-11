@@ -12,7 +12,7 @@
         <!-- Very top of every copy: the disclaimer, then the copy label. Both use the
              copy-header style (incl. its print-size override in laundry_receipt.scss). -->
         <xpath expr="//ReceiptHeader" position="before">
-            <div class="laundry-copy-header">NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM ONLY.</div>
+            <div class="laundry-copy-header">THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND REFERENCE PURPOSES ONLY.</div>
             <div t-if="copy.label" class="laundry-copy-header" t-esc="copy.label"/>
         </xpath>
 
