@@ -111,7 +111,7 @@ product grid ("Tap New Order or Settle Order above to begin").
 | `self_service` | Self-service |
 
 ## Receipt tax lines, disclaimer, ORDER # — v1.4.17
-- **Disclaimer at the very top of every copy:** "THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND REFERENCE PURPOSES ONLY.", above
+- **Disclaimer at the very top of every copy:** "THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND INTERNAL REFERENCE PURPOSES ONLY.", above
   the copy label, reusing the `laundry-copy-header` class so it gets the same size/bold + print override.
 - **Subtotal / VAT lines only for a VAT Registered fiscal position.** `order_receipt_patch.xml` adds
   `laundryShowTaxBreakdown` to core's `pos-receipt-taxes` `t-if`; the getter matches
