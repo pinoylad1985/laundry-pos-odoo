@@ -16,6 +16,11 @@ const SERVICE_LABELS = {
     self_service: "Self-service",
 };
 
+// Only an order on this fiscal position prints the Subtotal / VAT breakdown.
+// Matched by NAME, exactly (case/space-insensitive) — a substring match would
+// also catch e.g. "Non-VAT Registered".
+const VAT_BREAKDOWN_FISCAL_POSITION = "vat registered";
+
 // The order's service type — from the stored field, else the localStorage setup.
 function laundryServiceTypeOf(order) {
     const svcType = order?.laundry_service_type;
@@ -96,5 +101,11 @@ patch(OrderReceipt.prototype, {
             return [printOnlyCopy];
         }
         return computeLaundryCopies(this.props.order);
+    },
+
+    // Show Subtotal + VAT lines only when the order's fiscal position is VAT Registered.
+    get laundryShowTaxBreakdown() {
+        const name = this.props.order?.fiscal_position_id?.name;
+        return (name || "").trim().toLowerCase() === VAT_BREAKDOWN_FISCAL_POSITION;
     },
 });

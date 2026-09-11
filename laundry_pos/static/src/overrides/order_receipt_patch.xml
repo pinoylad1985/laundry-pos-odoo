@@ -9,8 +9,17 @@
         </xpath>
 
         <!-- Big copy header at the top of each copy (when labelled). -->
+        <!-- Very top of every copy: the disclaimer, then the copy label. Both use the
+             copy-header style (incl. its print-size override in laundry_receipt.scss). -->
         <xpath expr="//ReceiptHeader" position="before">
+            <div class="laundry-copy-header">NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM ONLY.</div>
             <div t-if="copy.label" class="laundry-copy-header" t-esc="copy.label"/>
+        </xpath>
+
+        <!-- Subtotal + VAT lines only for a VAT Registered fiscal position; otherwise
+             the receipt goes straight to Total (which core always prints). -->
+        <xpath expr="//div[hasclass('pos-receipt-taxes')]" position="attributes">
+            <attribute name="t-if">taxTotals and taxTotals.has_tax_groups and laundryShowTaxBreakdown</attribute>
         </xpath>
 
         <!-- Box the one product line this copy is for (copy + line both in scope). -->

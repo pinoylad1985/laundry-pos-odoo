@@ -2,6 +2,12 @@
 <templates xml:space="preserve">
     <t t-inherit="point_of_sale.ReceiptHeader" t-inherit-mode="extension">
 
+        <!-- "ORDER #" label in front of the Order Number (tracking_number), same size.
+             Sits inside core's wrapper div, so it only shows when the number does. -->
+        <xpath expr="//span[hasclass('tracking-number')]" position="before">
+            <span class="laundry-order-label fs-1">ORDER # </span>
+        </xpath>
+
         <!-- Customer name: larger + bold -->
         <xpath expr="//span[@t-esc='order.partner_id.name']" position="attributes">
             <attribute name="style">font-size: 24px; font-weight: bold;</attribute>

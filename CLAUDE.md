@@ -110,6 +110,17 @@ product grid ("Tap New Order or Settle Order above to begin").
 | `locker` | Locker |
 | `self_service` | Self-service |
 
+## Receipt tax lines, disclaimer, ORDER # — v1.4.17
+- **Disclaimer at the very top of every copy:** "NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM ONLY.", above
+  the copy label, reusing the `laundry-copy-header` class so it gets the same size/bold + print override.
+- **Subtotal / VAT lines only for a VAT Registered fiscal position.** `order_receipt_patch.xml` adds
+  `laundryShowTaxBreakdown` to core's `pos-receipt-taxes` `t-if`; the getter matches
+  `order.fiscal_position_id.name` **exactly** (trimmed, case-insensitive) against `VAT Registered`. Exact, not
+  substring, so "Non-VAT Registered" doesn't match. Renaming that fiscal position hides the breakdown. Total
+  always prints.
+- **"ORDER # "** is prefixed to the Order Number (`tracking_number`, NOT `pos_reference` which is the Receipt
+  Number) inside core's tracking-number wrapper, so it shows only when core shows the number.
+
 ## Reprint copy picker — v1.4.16
 Reprinting used to always print the FULL set of copies. Now `PosStore.printReceipt` opens
 **`ReprintCopiesPopup`** (`static/src/reprint_picker/`) so the cashier picks which copies to print.
