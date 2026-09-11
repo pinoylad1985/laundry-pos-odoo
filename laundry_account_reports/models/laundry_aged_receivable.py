@@ -23,16 +23,17 @@ PERIOD_NAMES = {
 }
 
 # Columns filled by _custom_line_postprocessor instead of by the SQL engine.
-DOCUMENT_LABELS = ('doc_date', 'doc_ref', 'service_type', 'cashier', 'delivery_rider')
+DOCUMENT_LABELS = ('doc_date', 'doc_ref', 'service_type', 'cashier', 'delivery_rider', 'account_approved_by')
 PARTNER_LABELS = ('partner_address', 'partner_phone')
 
 # Partner fields the Address column is built from, and therefore the ones the
 # Address filter searches. Keep the two in step by going through this tuple.
 ADDRESS_FIELDS = ('street', 'street2', 'city')
 
-# Keys of the two custom filters. The LaundryAgedReceivableFilters component in
+# Keys of the custom filters. The LaundryAgedReceivableFilters component in
 # static/src/components/filters.js writes to exactly these keys.
 SERVICE_TYPE_OPTION = 'laundry_service_types'       # list of {id, name, selected}
+APPROVER_OPTION = 'laundry_account_approvers'       # list of {id, name, selected}
 ADDRESS_TEXT_OPTION = 'laundry_address_text'        # free text
 ADDRESS_MODE_OPTION = 'laundry_address_mode'        # 'contains' | 'not_contains'
 
@@ -41,6 +42,17 @@ ADDRESS_MODE_OPTION = 'laundry_address_mode'        # 'contains' | 'not_contains
 # and any POS order carrying no type. It is not a value of the field, hence a
 # sentinel that no selection key can collide with.
 NO_SERVICE_TYPE_KEY = '__none__'
+
+# Same idea for Account Approved By: the rows with no approver. That is any
+# invoice raised outside the POS, and every POS order that never needed one -
+# Pickup & Delivery / Locker orders, and orders from before laundry_pos
+# introduced the manager-PIN gate.
+NO_APPROVER_KEY = '__none__'
+
+# pos.order field holding the approving manager's name (laundry_pos). Plain
+# text, not a link to the employee, so the filter offers the names actually
+# stored rather than the current list of managers.
+APPROVED_BY_FIELD = 'laundry_account_approved_by'
 
 
 class LaundryAgedReceivableReportHandler(models.AbstractModel):
@@ -85,7 +97,7 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
         if not options['order_column']:
             options['order_column'] = {'expression_label': 'doc_date', 'direction': 'ASC'}
 
-        self._laundry_init_filter_options(options, previous_options or {})
+        self._laundry_init_filter_options(report, options, previous_options or {})
 
         # forced_domain is folded into every query built from these options - the
         # engine below, the unfold-all batch, the drill-down list and the audit
@@ -96,7 +108,7 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
             options['forced_domain'] = (options.get('forced_domain') or []) + extra_domain
 
     # ------------------------------------------------------------------
-    # Service Type / Address filters
+    # Service Type / Account Approved By / Address filters
     # ------------------------------------------------------------------
 
     def _laundry_service_type_selection(self):
@@ -106,17 +118,37 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
             return []
         return pos_order.fields_get(['laundry_service_type'])['laundry_service_type']['selection']
 
-    def _laundry_init_filter_options(self, options, previous_options):
-        """Publish the two custom filters, restoring whatever the user last picked.
+    def _laundry_account_approver_names(self, report, options):
+        """Every name ever recorded as Account Approved By, alphabetically.
+
+        Read off the orders rather than off the current managers, so someone who
+        has since left, or been renamed, can still be picked for the orders they
+        approved. Limited to the companies the report is showing.
+        """
+        # sudo: accountants do not necessarily have read access on pos.order.
+        groups = self.env['pos.order'].sudo()._read_group(
+            domain=[
+                (APPROVED_BY_FIELD, '!=', False),
+                ('company_id', 'in', report.get_report_company_ids(options)),
+            ],
+            groupby=[APPROVED_BY_FIELD],
+        )
+        return sorted({name for (name,) in groups if name}, key=str.casefold)
+
+    def _laundry_init_filter_options(self, report, options, previous_options):
+        """Publish the custom filters, restoring whatever the user last picked.
 
         The filter bar reads and writes these keys directly, and the client sends
         the whole options dict back as previous_options on every reload.
         """
-        ticked = {
-            entry.get('id')
-            for entry in previous_options.get(SERVICE_TYPE_OPTION) or []
-            if isinstance(entry, dict) and entry.get('selected')
-        }
+        def ticked_ids(option_key):
+            return {
+                entry.get('id')
+                for entry in previous_options.get(option_key) or []
+                if isinstance(entry, dict) and entry.get('selected')
+            }
+
+        ticked = ticked_ids(SERVICE_TYPE_OPTION)
         options[SERVICE_TYPE_OPTION] = [
             {'id': key, 'name': label, 'selected': key in ticked}
             for key, label in self._laundry_service_type_selection()
@@ -127,14 +159,30 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
             'selected': NO_SERVICE_TYPE_KEY in ticked,
         })
 
+        # The stored name is the id as well: it is what the domain has to match.
+        ticked = ticked_ids(APPROVER_OPTION)
+        options[APPROVER_OPTION] = [
+            {'id': name, 'name': name, 'selected': name in ticked}
+            for name in self._laundry_account_approver_names(report, options)
+        ]
+        options[APPROVER_OPTION].append({
+            'id': NO_APPROVER_KEY,
+            'name': _("(No approver)"),
+            'selected': NO_APPROVER_KEY in ticked,
+        })
+
         options[ADDRESS_TEXT_OPTION] = str(previous_options.get(ADDRESS_TEXT_OPTION) or '').strip()
         options[ADDRESS_MODE_OPTION] = (
             'not_contains' if previous_options.get(ADDRESS_MODE_OPTION) == 'not_contains' else 'contains'
         )
 
     def _laundry_get_filter_domain(self, options):
-        """Both filters as one domain; concatenating two domains is an AND."""
-        return self._laundry_service_type_domain(options) + self._laundry_address_domain(options)
+        """All filters as one domain; concatenating domains is an AND."""
+        return (
+            self._laundry_service_type_domain(options)
+            + self._laundry_account_approver_domain(options)
+            + self._laundry_address_domain(options)
+        )
 
     def _laundry_service_type_domain(self, options):
         """Restrict to the ticked service types; nothing ticked means no filtering.
@@ -176,6 +224,44 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
                 '|', ('move_id.pos_order_ids', '=', False),
                 ('move_id.pos_order_ids.laundry_service_type', '=', False),
             ])
+
+        if len(domains) == 1:
+            return domains[0]
+        return ['|'] + domains[0] + domains[1]
+
+    def _laundry_account_approver_domain(self, options):
+        """Restrict to the ticked approvers; nothing ticked means no filtering.
+
+        Built exactly like _laundry_service_type_domain, the only difference
+        being that a text field can be blank two ways, NULL or ''.
+        """
+        ticked = {
+            choice['id']
+            for choice in options.get(APPROVER_OPTION) or []
+            if choice.get('selected')
+        }
+        if not ticked:
+            return []
+
+        stamped = f'pos_order_id.{APPROVED_BY_FIELD}'
+        invoiced = f'move_id.pos_order_ids.{APPROVED_BY_FIELD}'
+
+        def blank(path):
+            return ['|', (path, '=', False), (path, '=', '')]
+
+        domains = []
+
+        names = sorted(ticked - {NO_APPROVER_KEY})
+        if names:
+            domains.append(['|', (stamped, 'in', names), (invoiced, 'in', names)])
+
+        if NO_APPROVER_KEY in ticked:
+            # Same order of preference as _laundry_get_document_values, so this
+            # matches exactly the rows whose Account Approved By cell is empty.
+            domains.append(
+                ['|', '&', ('pos_order_id', '!=', False)] + blank(stamped)
+                + ['&', ('pos_order_id', '=', False), '|', ('move_id.pos_order_ids', '=', False)] + blank(invoiced)
+            )
 
         if len(domains) == 1:
             return domains[0]
@@ -616,6 +702,9 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
                     # Filled by the delivery sign-off, so blank until an order
                     # has been through it.
                     'delivery_rider': order.laundry_delivery_rider or '',
+                    # The manager whose PIN allowed Customer Account on this
+                    # order. Blank when the service type did not need one.
+                    'account_approved_by': order[APPROVED_BY_FIELD] or '',
                 }
             else:
                 values[move_line.id] = {
@@ -624,6 +713,7 @@ class LaundryAgedReceivableReportHandler(models.AbstractModel):
                     'service_type': '',
                     'cashier': '',
                     'delivery_rider': '',
+                    'account_approved_by': '',
                 }
 
         return values

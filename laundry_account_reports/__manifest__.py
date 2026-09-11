@@ -1,6 +1,6 @@
 {
     'name': 'Laundry Accounting Reports',
-    'version': '1.5.0',
+    'version': '1.6.0',
     'author': 'laundryx',
     'summary': 'Aged Receivable (Detailed) report: per-order aging with document and address columns',
     'description': """
@@ -9,8 +9,9 @@ the standard Aged Receivable, which is left exactly as Odoo ships it.
 
 It ages day by day for the first five days overdue (then 6-30 / 31-60 / 61-120 /
 121-360 / 360+) and shows, on every open line, the POS order or invoice it came
-from - date, number, laundry service type, cashier and delivery rider - plus the
-customer's address and phone. Those last two sit on the customer rows on screen
+from - date, number, laundry service type, cashier, delivery rider and the
+manager who approved Customer Account on it - plus the customer's address and
+phone. Those last two sit on the customer rows on screen
 and repeat on every order row when the report is exported, so a spreadsheet row
 stands on its own.
 
@@ -19,9 +20,10 @@ to its POS order (account.move.line.pos_order_id), which core does not record
 for orders paid on Customer Account.
 
 The filter bar gains a Service Type filter (tick as many types as you like, plus
-a "(No service type)" entry for invoices raised outside the POS) and an Address
-filter with a "contains" / "does not contain" text box, and every column can be
-dragged wider or narrower (double-click a handle to reset).
+a "(No service type)" entry for invoices raised outside the POS), an Account
+Approved By filter built the same way (with a "(No approver)" entry), and an
+Address filter with a "contains" / "does not contain" text box, and every column
+can be dragged wider or narrower (double-click a handle to reset).
 """,
     'category': 'Accounting/Accounting',
     'depends': ['account_reports', 'point_of_sale', 'laundry_pos'],
