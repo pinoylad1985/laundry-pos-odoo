@@ -5,11 +5,11 @@ import { AccountReportFilters } from "@account_reports/components/account_report
 /**
  * Filter bar of the Aged Receivable (Detailed) report.
  *
- * Adds a Service Type filter (tick as many types as you like) and an Address
- * filter (a contains / does not contain text box). Everything it does is write
- * to the report options; the matching itself happens server side, in
- * laundry_aged_receivable.py, so the customer subtotals and the aging buckets
- * stay consistent with the rows shown.
+ * Adds two tick-list filters - Service Type and Account Approved By, tick as
+ * many entries as you like - and an Address filter (a contains / does not
+ * contain text box). Everything it does is write to the report options; the
+ * matching itself happens server side, in laundry_aged_receivable.py, so the
+ * customer subtotals and the aging buckets stay consistent with the rows shown.
  *
  * Option keys must stay in step with SERVICE_TYPE_OPTION & co. in
  * models/laundry_aged_receivable.py.
@@ -18,15 +18,31 @@ export class LaundryAgedReceivableFilters extends AccountReportFilters {
     static template = "laundry_account_reports.LaundryAgedReceivableFilters";
 
     // -----------------------------------------------------------------------------------------------------------------
-    // Service type
+    // Tick lists
     // -----------------------------------------------------------------------------------------------------------------
     get serviceTypes() {
-        return this.controller.cachedFilterOptions.laundry_service_types || [];
+        return this.tickList("laundry_service_types");
+    }
+
+    get approvers() {
+        return this.tickList("laundry_account_approvers");
+    }
+
+    get serviceTypeSummary() {
+        return this.tickListSummary(this.serviceTypes);
+    }
+
+    get approverSummary() {
+        return this.tickListSummary(this.approvers);
+    }
+
+    tickList(optionKey) {
+        return this.controller.cachedFilterOptions[optionKey] || [];
     }
 
     /** Short recap shown on the closed dropdown, so an active filter is visible without opening it. */
-    get serviceTypeSummary() {
-        const ticked = this.serviceTypes.filter((serviceType) => serviceType.selected);
+    tickListSummary(entries) {
+        const ticked = entries.filter((entry) => entry.selected);
 
         if (!ticked.length) {
             return "";
@@ -35,6 +51,9 @@ export class LaundryAgedReceivableFilters extends AccountReportFilters {
         return ticked.length === 1 ? ticked[0].name : _t("%s selected", ticked.length);
     }
 
+    // -----------------------------------------------------------------------------------------------------------------
+    // Address
+    // -----------------------------------------------------------------------------------------------------------------
     get addressSummary() {
         const options = this.controller.cachedFilterOptions;
         const text = (options.laundry_address_text || "").trim();
@@ -49,9 +68,9 @@ export class LaundryAgedReceivableFilters extends AccountReportFilters {
     // -----------------------------------------------------------------------------------------------------------------
     // Actions
     // -----------------------------------------------------------------------------------------------------------------
-    async toggleServiceType(index) {
+    async toggleTick(optionKey, index) {
         await this.filterClicked({
-            optionKey: `laundry_service_types.${index}.selected`,
+            optionKey: `${optionKey}.${index}.selected`,
             reload: true,
         });
     }
@@ -80,20 +99,22 @@ export class LaundryAgedReceivableFilters extends AccountReportFilters {
     }
 
     /**
-     * Unticking one by one would reload once per type, so write straight to the
+     * Unticking one by one would reload once per entry, so write straight to the
      * (reactive) cached options and reload once - which is exactly what
      * filterClicked does internally.
      */
-    async clearServiceTypeFilter() {
-        if (!this.serviceTypes.some((serviceType) => serviceType.selected)) {
+    async clearTickList(optionKey) {
+        const entries = this.tickList(optionKey);
+
+        if (!entries.some((entry) => entry.selected)) {
             return;
         }
 
-        for (const serviceType of this.serviceTypes) {
-            serviceType.selected = false;
+        for (const entry of entries) {
+            entry.selected = false;
         }
 
-        await this.applyFilters("laundry_service_types");
+        await this.applyFilters(optionKey);
     }
 
     async clearAddressFilter() {
