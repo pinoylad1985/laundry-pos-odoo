@@ -9,11 +9,15 @@
         </xpath>
 
         <!-- Big copy header at the top of each copy (when labelled). -->
-        <!-- Very top of every copy: the disclaimer, then the copy label. Both use the
-             copy-header style (incl. its print-size override in laundry_receipt.scss). -->
         <xpath expr="//ReceiptHeader" position="before">
-            <div class="laundry-copy-header">THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND INTERNAL REFERENCE PURPOSES ONLY.</div>
             <div t-if="copy.label" class="laundry-copy-header" t-esc="copy.label"/>
+        </xpath>
+
+        <!-- Tax disclaimer at the very BOTTOM of each copy — appended last, after core's
+             company/contact block and its (hidden) "Powered by Odoo" line. Uses the
+             copy-header style, so it matches the copy label's size/weight in print too. -->
+        <xpath expr="//div[hasclass('pos-receipt')]" position="inside">
+            <div class="laundry-copy-header pt-3">THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND INTERNAL REFERENCE PURPOSES ONLY.</div>
         </xpath>
 
         <!-- Subtotal + VAT lines only for a VAT Registered fiscal position; otherwise
