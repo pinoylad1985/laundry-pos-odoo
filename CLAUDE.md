@@ -110,9 +110,11 @@ product grid ("Tap New Order or Settle Order above to begin").
 | `locker` | Locker |
 | `self_service` | Self-service |
 
-## Receipt tax lines, disclaimer, ORDER # — v1.4.17
-- **Disclaimer at the very top of every copy:** "THIS IS NOT AN OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND INTERNAL REFERENCE PURPOSES ONLY.", above
-  the copy label, reusing the `laundry-copy-header` class so it gets the same size/bold + print override.
+## Receipt tax lines, disclaimer, ORDER # — v1.4.18
+- **Disclaimer at the very BOTTOM of every copy** (v1.4.18; it was at the top in 1.4.17): "THIS IS NOT AN
+  OFFICIAL TAX INVOICE. FOR LAUNDRY CLAIM TRACKING AND INTERNAL REFERENCE PURPOSES ONLY." — appended with
+  `position="inside"` on `.pos-receipt`, so it lands after core's company/contact block and the hidden
+  "Powered by Odoo" line. Reuses the `laundry-copy-header` class for the same size/bold + print override.
 - **Subtotal / VAT lines only for a VAT Registered fiscal position.** `order_receipt_patch.xml` adds
   `laundryShowTaxBreakdown` to core's `pos-receipt-taxes` `t-if`; the getter matches
   `order.fiscal_position_id.name` **exactly** (trimmed, case-insensitive) against `VAT Registered`. Exact, not
